@@ -33,12 +33,13 @@
  * datos entre dispositivos.
  * ============================================================================
  */
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDjDVg2Qhi9AMb4B6qkIMLsV4UOvy6ZqCE",
-  authDomain: "lector-6a406.firebaseapp.com",
-  projectId: "lector-6a406",
-  storageBucket: "lector-6a406.firebasestorage.app",
-  messagingSenderId: "960864333086",
-  appId: "1:960864333086:web:cf3eeb60731bef09bcad0f",
-  measurementId: "G-CCS7L9BSNG"
+  apiKey: "AIzaSyB7oOf_TZ4OlD5rH49CT3cQ-aX5ent8sSM",
+  authDomain: "lectometro-4bab8.firebaseapp.com",
+  projectId: "lectometro-4bab8",
+  storageBucket: "lectometro-4bab8.firebasestorage.app",
+  messagingSenderId: "117489962842",
+  appId: "1:117489962842:web:0fa0c025055df0e1942d63",
+  measurementId: "G-1QZ589CPYB"
 };
