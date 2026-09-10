@@ -34,6 +34,7 @@
  * ============================================================================
  */
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyB7oOf_TZ4OlD5rH49CT3cQ-aX5ent8sSM",
   authDomain: "lectometro-4bab8.firebaseapp.com",
