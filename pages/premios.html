@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Premios — LectorIEP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-content">
+
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;">
+        <div>
+          <span class="page-eyebrow-tag"><i class="bi bi-gift"></i> Tienda de puntos</span>
+          <h1 class="page-title">Premios</h1>
+          <p class="page-subtitle" id="premios-subtitulo">Canjea tus puntos de lectura por premios reales del colegio.</p>
+        </div>
+        <button class="btn-lector btn-lector-amber" id="btn-nuevo-premio" style="display:none;"><i class="bi bi-plus-lg"></i> Nuevo premio</button>
+      </div>
+
+      <div id="mi-saldo" class="card-lector bar-amber" style="margin-bottom:20px;display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div class="stat-label">Tus puntos disponibles</div>
+            <div class="stat-value" id="saldo-puntos">0</div>
+          </div>
+          <i class="bi bi-stars" style="font-size:36px;color:var(--amber);"></i>
+        </div>
+      </div>
+
+      <div class="grid-cards grid-cols-3" id="grilla-premios" style="margin-bottom:24px;"></div>
+
+      <div class="card-lector" id="panel-mis-canjes" style="margin-bottom:20px;">
+        <div class="section-title"><span>Mis canjes</span></div>
+        <div id="tabla-mis-canjes"></div>
+      </div>
+
+      <div class="card-lector" id="panel-canjes-pendientes" style="display:none;">
+        <div class="section-title"><span>Canjes por entregar</span></div>
+        <div id="tabla-canjes-pendientes"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast-stack" class="toast-stack"></div>
+
+<div class="modal-backdrop-lector" id="modal-premio">
+  <div class="modal-box">
+    <div class="modal-box-title"><h3 style="margin:0;" id="mp-titulo">Nuevo premio</h3><button class="modal-close-btn" onclick="document.getElementById('modal-premio').classList.remove('show')"><i class="bi bi-x-lg"></i></button></div>
+    <form id="form-premio">
+      <input type="hidden" id="mp-id">
+      <div class="form-group-lector"><label class="form-label-lector">Nombre del premio</label><input class="form-control-lector" id="mp-nombre" required placeholder="Ej. Diploma de Lector Destacado"></div>
+      <div class="form-group-lector"><label class="form-label-lector">Descripción</label><textarea class="form-control-lector" id="mp-descripcion" rows="2"></textarea></div>
+      <div class="grid-cards grid-cols-2">
+        <div class="form-group-lector"><label class="form-label-lector">Costo en puntos</label><input type="number" min="1" class="form-control-lector" id="mp-costo" required></div>
+        <div class="form-group-lector"><label class="form-label-lector">Stock (vacío = ilimitado)</label><input type="number" min="0" class="form-control-lector" id="mp-stock"></div>
+      </div>
+      <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-save"></i> Guardar premio</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloud.js"></script>
+<script src="../js/filedb.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  initDatabase();
+  const usuario = renderShell("premios.html");
+  const puedeGestionar = ["admin", "bibliotecario"].includes(usuario.rol);
+  const esEstudiante = usuario.rol === "estudiante";
+
+  if (puedeGestionar) {
+    document.getElementById("btn-nuevo-premio").style.display = "inline-flex";
+    document.getElementById("premios-subtitulo").textContent = "Administra el catálogo de premios y entrega los canjes pendientes.";
+    document.getElementById("panel-canjes-pendientes").style.display = "block";
+    document.getElementById("panel-mis-canjes").style.display = "none";
+  }
+  if (esEstudiante) {
+    document.getElementById("mi-saldo").style.display = "block";
+    document.getElementById("saldo-puntos").textContent = usuario.puntos || 0;
+  } else if (!puedeGestionar) {
+    document.getElementById("panel-mis-canjes").style.display = "none";
+  }
+
+  function renderGrilla() {
+    const premios = dbGet("premios").filter(p => puedeGestionar || p.activo);
+    const cont = document.getElementById("grilla-premios");
+    if (premios.length === 0) {
+      cont.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><i class="bi bi-gift"></i>${puedeGestionar ? "Aún no creaste premios. Usa el botón «Nuevo premio»." : "Todavía no hay premios disponibles para canjear."}</div>`;
+      return;
+    }
+    cont.innerHTML = premios.map(p => {
+      const sinStock = p.stock !== null && p.stock <= 0;
+      const alcanza = esEstudiante && (usuario.puntos || 0) >= p.costoPuntos;
+      return `<div class="card-lector bar-left ${p.activo ? "bar-amber" : "bar-brick"}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="font-family:var(--font-display);font-size:16.5px;">${p.nombre}</div>
+          <span class="chip" style="--chip-color:var(--amber);flex-shrink:0;"><i class="bi bi-stars"></i> ${p.costoPuntos}</span>
+        </div>
+        <p class="text-muted-soft" style="font-size:13px;margin:8px 0;">${p.descripcion || "—"}</p>
+        <p class="text-muted-soft" style="font-size:12px;">${p.stock === null ? "Stock ilimitado" : `${p.stock} unidad(es) disponibles`}</p>
+        ${!p.activo ? `<span class="chip" style="--chip-color:var(--brick);margin-bottom:8px;">Inactivo</span>` : ""}
+        <div style="display:flex;gap:6px;margin-top:10px;">
+          ${esEstudiante ? `<button class="btn-lector btn-lector-primary btn-lector-sm" style="flex:1;" ${(!p.activo || sinStock || !alcanza) ? "disabled" : ""} onclick="canjear('${p.id}')"><i class="bi bi-bag-check"></i> ${sinStock ? "Sin stock" : (alcanza ? "Canjear" : "Puntos insuficientes")}</button>` : ""}
+          ${puedeGestionar ? `<button class="btn-lector btn-lector-outline btn-lector-sm" onclick="abrirEditarPremio('${p.id}')"><i class="bi bi-pencil"></i></button>
+            <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="toggleActivoPremio('${p.id}')"><i class="bi ${p.activo ? "bi-eye-slash" : "bi-eye"}"></i></button>
+            <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="borrarPremio('${p.id}')"><i class="bi bi-trash"></i></button>` : ""}
+        </div>
+      </div>`;
+    }).join("");
+  }
+  renderGrilla();
+
+  function canjear(id) {
+    const resultado = canjearPremio(usuario.id, id);
+    if (!resultado.ok) { mostrarToast(resultado.mensaje, "danger"); return; }
+    usuario.puntos = resultado.puntosRestantes;
+    document.getElementById("saldo-puntos").textContent = usuario.puntos;
+    renderGrilla();
+    renderMisCanjes();
+    mostrarToast("¡Premio canjeado! Acércate a la Coordinación CIST o biblioteca para recogerlo.", "success");
+  }
+
+  function renderMisCanjes() {
+    if (!esEstudiante) return;
+    const canjes = dbGet("canjes").filter(c => c.usuarioId === usuario.id).sort((a, b) => b.fecha.localeCompare(a.fecha));
+    const cont = document.getElementById("tabla-mis-canjes");
+    if (canjes.length === 0) { cont.innerHTML = `<div class="empty-state"><i class="bi bi-bag"></i>Aún no canjeas premios.</div>`; return; }
+    cont.innerHTML = `<div class="table-scroll"><table class="table-lector">
+      <thead><tr><th>Premio</th><th>Fecha</th><th>Estado</th></tr></thead>
+      <tbody>${canjes.map(c => {
+        const premio = dbGet("premios").find(p => p.id === c.premioId);
+        return `<tr><td>${premio ? premio.nombre : "(premio eliminado)"}</td><td>${formatoFecha(c.fecha)}</td>
+          <td><span class="chip" style="--chip-color:${c.estado === "entregado" ? "var(--forest)" : "var(--amber)"}">${c.estado === "entregado" ? "Entregado" : "Pendiente"}</span></td></tr>`;
+      }).join("")}</tbody></table></div>`;
+  }
+  renderMisCanjes();
+
+  function renderCanjesPendientes() {
+    if (!puedeGestionar) return;
+    const canjes = dbGet("canjes").filter(c => c.estado === "pendiente").sort((a, b) => a.fecha.localeCompare(b.fecha));
+    const cont = document.getElementById("tabla-canjes-pendientes");
+    if (canjes.length === 0) { cont.innerHTML = `<div class="empty-state"><i class="bi bi-check2-circle"></i>No hay canjes pendientes por entregar.</div>`; return; }
+    cont.innerHTML = `<div class="table-scroll"><table class="table-lector">
+      <thead><tr><th>Estudiante</th><th>Premio</th><th>Fecha</th><th></th></tr></thead>
+      <tbody>${canjes.map(c => {
+        const est = getUserById(c.usuarioId);
+        const premio = dbGet("premios").find(p => p.id === c.premioId);
+        return `<tr><td>${est ? est.nombre : "—"}</td><td>${premio ? premio.nombre : "—"}</td><td>${formatoFecha(c.fecha)}</td>
+          <td><button class="btn-lector btn-lector-primary btn-lector-sm" onclick="entregarCanje('${c.id}')"><i class="bi bi-check2"></i> Marcar entregado</button></td></tr>`;
+      }).join("")}</tbody></table></div>`;
+  }
+  renderCanjesPendientes();
+
+  function entregarCanje(id) {
+    marcarCanjeEntregado(id);
+    renderCanjesPendientes();
+    mostrarToast("Canje marcado como entregado.", "success");
+  }
+
+  function abrirNuevoPremio() {
+    document.getElementById("mp-titulo").textContent = "Nuevo premio";
+    document.getElementById("form-premio").reset();
+    document.getElementById("mp-id").value = "";
+    document.getElementById("modal-premio").classList.add("show");
+  }
+  document.getElementById("btn-nuevo-premio").addEventListener("click", abrirNuevoPremio);
+
+  function abrirEditarPremio(id) {
+    const p = dbGet("premios").find(x => x.id === id);
+    document.getElementById("mp-titulo").textContent = "Editar premio";
+    document.getElementById("mp-id").value = p.id;
+    document.getElementById("mp-nombre").value = p.nombre;
+    document.getElementById("mp-descripcion").value = p.descripcion || "";
+    document.getElementById("mp-costo").value = p.costoPuntos;
+    document.getElementById("mp-stock").value = p.stock === null ? "" : p.stock;
+    document.getElementById("modal-premio").classList.add("show");
+  }
+
+  document.getElementById("form-premio").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const id = document.getElementById("mp-id").value;
+    const datos = {
+      nombre: document.getElementById("mp-nombre").value,
+      descripcion: document.getElementById("mp-descripcion").value,
+      costoPuntos: document.getElementById("mp-costo").value,
+      stock: document.getElementById("mp-stock").value
+    };
+    if (id) actualizarPremio(id, datos); else crearPremio(datos);
+    document.getElementById("modal-premio").classList.remove("show");
+    renderGrilla();
+    mostrarToast(id ? "Premio actualizado." : "Premio creado.", "success");
+  });
+
+  function toggleActivoPremio(id) {
+    alternarActivoPremio(id);
+    renderGrilla();
+  }
+
+  function borrarPremio(id) {
+    if (!confirm("¿Eliminar este premio? También se borrará su historial de canjes.")) return;
+    eliminarPremio(id);
+    renderGrilla();
+    renderCanjesPendientes();
+    mostrarToast("Premio eliminado.", "info");
+  }
+</script>
+</body>
+</html>

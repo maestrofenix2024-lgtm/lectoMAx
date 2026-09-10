@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catálogo de biblioteca — LectorIEP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-content">
+
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;">
+        <div>
+          <span class="page-eyebrow-tag"><i class="bi bi-book-half"></i> Catálogo</span>
+          <h1 class="page-title">Biblioteca escolar</h1>
+          <p class="page-subtitle">Explora los libros disponibles por grado, género y nivel de comprensión lectora (MINEDU).</p>
+        </div>
+        <button class="btn-lector btn-lector-amber" id="btn-nuevo-libro" style="display:none;"><i class="bi bi-plus-lg"></i> Agregar libro</button>
+      </div>
+
+      <div id="aviso-prestamo-activo" style="display:none;"></div>
+
+      <div class="card-lector" style="margin-bottom:20px;">
+        <div class="grid-cards grid-cols-4">
+          <div>
+            <label class="form-label-lector">Buscar</label>
+            <input class="form-control-lector" id="f-busqueda" placeholder="Título o autor...">
+          </div>
+          <div>
+            <label class="form-label-lector">Género</label>
+            <select class="form-select-lector" id="f-genero"><option value="">Todos</option></select>
+          </div>
+          <div>
+            <label class="form-label-lector">Nivel MINEDU</label>
+            <select class="form-select-lector" id="f-nivel"><option value="">Todos</option></select>
+          </div>
+          <div>
+            <label class="form-label-lector">Grado</label>
+            <select class="form-select-lector" id="f-grado"><option value="">Todos</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-cards grid-cols-3" id="grilla-libros"></div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast-stack" class="toast-stack"></div>
+
+<div class="modal-backdrop-lector" id="modal-libro">
+  <div class="modal-box">
+    <div class="modal-box-title">
+      <h3 id="modal-libro-titulo" style="margin:0;">Libro</h3>
+      <button class="modal-close-btn" onclick="cerrarModalLibro()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div id="modal-libro-body"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop-lector" id="modal-form-libro">
+  <div class="modal-box">
+    <div class="modal-box-title">
+      <h3 style="margin:0;">Nuevo libro</h3>
+      <button class="modal-close-btn" onclick="document.getElementById('modal-form-libro').classList.remove('show')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <form id="form-nuevo-libro">
+      <div class="form-group-lector"><label class="form-label-lector">Título</label><input class="form-control-lector" id="nl-titulo" required></div>
+      <div class="form-group-lector"><label class="form-label-lector">Autor</label><input class="form-control-lector" id="nl-autor" required></div>
+      <div class="grid-cards grid-cols-2">
+        <div class="form-group-lector"><label class="form-label-lector">Género</label>
+          <select class="form-select-lector" id="nl-genero"></select>
+        </div>
+        <div class="form-group-lector"><label class="form-label-lector">Nivel MINEDU</label>
+          <select class="form-select-lector" id="nl-nivel"></select>
+        </div>
+      </div>
+      <div class="grid-cards grid-cols-2">
+        <div class="form-group-lector"><label class="form-label-lector">Páginas</label><input type="number" min="1" class="form-control-lector" id="nl-paginas" required></div>
+        <div class="form-group-lector"><label class="form-label-lector">Ejemplares (stock)</label><input type="number" min="1" class="form-control-lector" id="nl-stock" required></div>
+      </div>
+      <div class="form-group-lector"><label class="form-label-lector">Grados sugeridos</label>
+        <div id="nl-grados-lista" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </div>
+      <div class="form-group-lector"><label class="form-label-lector">Sinopsis</label><textarea class="form-control-lector" id="nl-sinopsis" rows="2"></textarea></div>
+      <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-save"></i> Guardar libro</button>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop-lector" id="modal-editar-libro">
+  <div class="modal-box">
+    <div class="modal-box-title">
+      <h3 style="margin:0;">Editar libro</h3>
+      <button class="modal-close-btn" onclick="document.getElementById('modal-editar-libro').classList.remove('show')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <form id="form-editar-libro">
+      <input type="hidden" id="el-id">
+      <div class="form-group-lector"><label class="form-label-lector">Título</label><input class="form-control-lector" id="el-titulo" required></div>
+      <div class="form-group-lector"><label class="form-label-lector">Autor</label><input class="form-control-lector" id="el-autor" required></div>
+      <div class="grid-cards grid-cols-2">
+        <div class="form-group-lector"><label class="form-label-lector">Género</label><select class="form-select-lector" id="el-genero"></select></div>
+        <div class="form-group-lector"><label class="form-label-lector">Nivel MINEDU</label><select class="form-select-lector" id="el-nivel"></select></div>
+      </div>
+      <div class="grid-cards grid-cols-2">
+        <div class="form-group-lector"><label class="form-label-lector">Páginas</label><input type="number" min="1" class="form-control-lector" id="el-paginas" required></div>
+        <div class="form-group-lector"><label class="form-label-lector">Stock total</label><input type="number" min="1" class="form-control-lector" id="el-stock" required></div>
+      </div>
+      <div class="form-group-lector"><label class="form-label-lector">Grados sugeridos</label>
+        <div id="el-grados-lista" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </div>
+      <div class="form-group-lector"><label class="form-label-lector">Sinopsis</label><textarea class="form-control-lector" id="el-sinopsis" rows="2"></textarea></div>
+      <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-save"></i> Guardar cambios</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloud.js"></script>
+<script src="../js/filedb.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  initDatabase();
+  const usuario = renderShell("biblioteca.html");
+  const puedeGestionar = ["admin", "bibliotecario", "docente"].includes(usuario.rol);
+  if (puedeGestionar) document.getElementById("btn-nuevo-libro").style.display = "inline-flex";
+
+  const selGenero = document.getElementById("f-genero");
+  GENEROS.forEach(g => selGenero.innerHTML += `<option value="${g}">${g}</option>`);
+  const selNivel = document.getElementById("f-nivel");
+  NIVELES_MINEDU.forEach(n => selNivel.innerHTML += `<option value="${n.id}">${n.nombre}</option>`);
+
+  function opcionesGradoHTML() {
+    return NIVELES_EDUCATIVOS.map(n => n.grados.map(g => `<option value="${codigoGrado(n.id, g)}">${etiquetaGrado(n.id, g)}</option>`).join("")).join("");
+  }
+  document.getElementById("f-grado").innerHTML += opcionesGradoHTML();
+
+  function checklistGradosHTML(clase) {
+    return NIVELES_EDUCATIVOS.map(n => `
+      <div style="width:100%;font-size:11.5px;font-weight:600;color:var(--ink-soft);margin-top:6px;">${n.nombre}</div>
+      ${n.grados.map(g => `<label style="margin-right:6px;"><input type="checkbox" value="${codigoGrado(n.id, g)}" class="${clase}"> ${g}°</label>`).join("")}
+    `).join("");
+  }
+  document.getElementById("nl-grados-lista").innerHTML = checklistGradosHTML("nl-grado");
+  document.getElementById("el-grados-lista").innerHTML = checklistGradosHTML("el-grado");
+
+  const nlGenero = document.getElementById("nl-genero");
+  GENEROS.forEach(g => nlGenero.innerHTML += `<option value="${g}">${g}</option>`);
+  const nlNivel = document.getElementById("nl-nivel");
+  NIVELES_MINEDU.forEach(n => nlNivel.innerHTML += `<option value="${n.id}">${n.nombre}</option>`);
+
+  function librosFiltrados() {
+    const texto = document.getElementById("f-busqueda").value.toLowerCase();
+    const genero = document.getElementById("f-genero").value;
+    const nivel = document.getElementById("f-nivel").value;
+    const grado = document.getElementById("f-grado").value;
+    return dbGet("libros").filter(b => {
+      if (!puedeGestionar && !libroActivo(b)) return false;
+      if (texto && !(b.titulo.toLowerCase().includes(texto) || b.autor.toLowerCase().includes(texto))) return false;
+      if (genero && b.genero !== genero) return false;
+      if (nivel && b.nivelMinedu !== nivel) return false;
+      if (grado && !b.grados.includes(grado)) return false;
+      return true;
+    });
+  }
+
+  function renderAvisoPrestamo() {
+    const aviso = document.getElementById("aviso-prestamo-activo");
+    if (usuario.rol !== "estudiante") { aviso.style.display = "none"; return; }
+
+    const sancionHasta = usuarioSancionado(usuario.id);
+    const activos = prestamosActivosDeUsuario(usuario.id);
+
+    if (!sancionHasta && activos.length === 0) { aviso.style.display = "none"; return; }
+    aviso.style.display = "block";
+
+    let html = "";
+    if (sancionHasta) {
+      html += `<div class="card-lector" style="margin-bottom:12px;border-left:4px solid var(--brick,#A63A3A);display:flex;align-items:center;gap:10px;">
+        <i class="bi bi-slash-circle" style="font-size:20px;color:var(--brick,#A63A3A);"></i>
+        <div><strong>Sanción activa por devolución tardía.</strong> No podrás pedir libros hasta el <strong>${sancionHasta}</strong>.</div>
+      </div>`;
+    }
+    if (activos.length > 0) {
+      const items = activos.map(p => {
+        const libro = getBookById(p.libroId);
+        const atrasado = p.estado === "atrasado";
+        return `<li>"${libro ? libro.titulo : "Libro"}" — vence ${p.fechaDevolucionEsperada}${atrasado ? " <strong style='color:var(--brick,#A63A3A);'>(atrasado)</strong>" : ""}</li>`;
+      }).join("");
+      html += `<div class="card-lector" style="margin-bottom:20px;border-left:4px solid var(--amber, #C77D2E);display:flex;align-items:center;gap:10px;">
+        <i class="bi bi-bookmark-star" style="font-size:20px;color:var(--amber,#C77D2E);"></i>
+        <div>
+          <strong>Tienes ${activos.length} de ${LIMITE_PRESTAMOS_ACTIVOS} préstamos activos:</strong>
+          <ul style="margin:4px 0 0 18px;padding:0;">${items}</ul>
+        </div>
+      </div>`;
+    }
+    aviso.innerHTML = html;
+  }
+
+  function motivoBloqueoPrestamo(b, sancionHasta, activos, librosActivos) {
+    if (sancionHasta) return `Sanción activa hasta ${sancionHasta}`;
+    if (b.disponibles < 1) return "Sin ejemplares disponibles";
+    if (activos.length >= LIMITE_PRESTAMOS_ACTIVOS) return `Ya tienes ${LIMITE_PRESTAMOS_ACTIVOS} libros prestados`;
+    if (librosActivos.some(a => a.autor === b.autor)) return "Ya tienes un libro del mismo autor prestado";
+    if (librosActivos.some(a => a.genero === b.genero)) return "Ya tienes un libro del mismo género prestado";
+    return "";
+  }
+
+  function renderGrilla() {
+    renderAvisoPrestamo();
+    const esEstudiante = usuario.rol === "estudiante";
+    const sancionHasta = esEstudiante ? usuarioSancionado(usuario.id) : null;
+    const activos = esEstudiante ? prestamosActivosDeUsuario(usuario.id) : [];
+    const todosLosLibros = dbGet("libros");
+    const librosActivos = activos.map(p => todosLosLibros.find(x => x.id === p.libroId)).filter(Boolean);
+    const libros = librosFiltrados();
+    const cont = document.getElementById("grilla-libros");
+    if (libros.length === 0) {
+      cont.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><i class="bi bi-search"></i>No se encontraron libros con esos filtros.</div>`;
+      return;
+    }
+    cont.innerHTML = libros.map(b => {
+      const nivel = getNivelMinedu(b.nivelMinedu);
+      const activo = libroActivo(b);
+      const promedio = promedioCalificacionLibro(b.id);
+      const numResenas = resenasDeLibro(b.id).length;
+      const motivoBloqueo = esEstudiante ? motivoBloqueoPrestamo(b, sancionHasta, activos, librosActivos) : "";
+      return `<div class="book-card" style="${activo ? "" : "opacity:0.55;"}">
+        <div class="book-spine" style="background:${b.color}">
+          <i class="bi bi-book"></i>
+          <span class="chip" style="--chip-color:#fff;background:rgba(255,255,255,0.2);color:#fff;border-color:rgba(255,255,255,0.4);">${activo ? `${b.disponibles}/${b.stock} disp.` : "Dado de baja"}</span>
+        </div>
+        <div class="book-body">
+          <p class="book-title">${b.titulo}</p>
+          <p class="book-author">${b.autor}</p>
+          <div class="book-meta">
+            <span class="chip" style="--chip-color:${b.color}">${b.genero}</span>
+            <span class="chip" style="--chip-color:${nivel.color}">${nivel.nombre}</span>
+          </div>
+          ${promedio !== null ? `<div style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-soft);margin:2px 0 4px;"><i class="bi bi-star-fill" style="color:var(--gold);"></i> ${promedio.toFixed(1)} · ${numResenas} reseña${numResenas === 1 ? "" : "s"}</div>` : ""}
+          <p class="book-synopsis">${b.sinopsis}</p>
+          <div class="book-footer">
+            <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="verLibro('${b.id}')"><i class="bi bi-eye"></i> Detalle</button>
+            ${esEstudiante && activo ? `<button class="btn-lector btn-lector-primary btn-lector-sm" ${motivoBloqueo ? "disabled" : ""} onclick="pedirPrestamo('${b.id}')" title="${motivoBloqueo}"><i class="bi bi-bookmark-plus"></i> Prestar</button>` : ""}
+            ${puedeGestionar ? `<button class="btn-lector btn-lector-outline btn-lector-sm" onclick="editarLibro('${b.id}')"><i class="bi bi-pencil"></i></button>
+              <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="toggleBajaLibro('${b.id}')"><i class="bi ${activo ? "bi-archive" : "bi-arrow-counterclockwise"}"></i></button>` : ""}
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+  renderGrilla();
+  ["f-busqueda", "f-genero", "f-nivel", "f-grado"].forEach(id => document.getElementById(id).addEventListener("input", renderGrilla));
+
+  function verLibro(id) {
+    const b = getBookById(id);
+    const nivel = getNivelMinedu(b.nivelMinedu);
+    const promedio = promedioCalificacionLibro(b.id);
+    const resenas = resenasDeLibro(b.id);
+    document.getElementById("modal-libro-titulo").textContent = b.titulo;
+    document.getElementById("modal-libro-body").innerHTML = `
+      <p class="text-muted-soft" style="margin-top:-8px;">${b.autor} · ${b.paginas} páginas</p>
+      <div class="book-meta" style="margin-bottom:12px;">
+        <span class="chip" style="--chip-color:${b.color}">${b.genero}</span>
+        <span class="chip" style="--chip-color:${nivel.color}">${nivel.nombre}</span>
+        <span class="chip">Grados: ${b.grados.map(codigo => etiquetaGradoPorCodigo(codigo)).join(", ")}</span>
+      </div>
+      <p>${b.sinopsis}</p>
+      <p class="text-muted-soft" style="font-size:13px;"><i class="bi bi-stack"></i> ${b.disponibles} de ${b.stock} ejemplares disponibles</p>
+      ${promedio !== null ? `<p style="font-size:14px;margin:10px 0 4px;"><i class="bi bi-star-fill" style="color:var(--gold);"></i> <strong>${promedio.toFixed(1)}</strong> / 5 — ${resenas.length} reseña${resenas.length === 1 ? "" : "s"} de estudiantes</p>` : ""}
+      ${resenas.length ? `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px;max-height:220px;overflow-y:auto;">
+        ${resenas.slice(0, 10).map(r => `<div style="margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:600;">${r.usuario.nombre} <span style="color:var(--gold);font-weight:400;">${"★".repeat(r.autoevaluacion)}</span></div>
+          <div class="text-muted-soft" style="font-size:12.5px;">${r.comentario}</div>
+        </div>`).join("")}
+      </div>` : `<p class="text-muted-soft" style="font-size:12.5px;margin-top:10px;">Aún no hay reseñas de estudiantes para este libro.</p>`}
+    `;
+    document.getElementById("modal-libro").classList.add("show");
+  }
+  function cerrarModalLibro() { document.getElementById("modal-libro").classList.remove("show"); }
+
+  function pedirPrestamo(id) {
+    const resultado = registrarPrestamo({ libroId: id, usuarioId: usuario.id });
+    if (resultado.ok) { mostrarToast("Préstamo registrado. Recógelo en biblioteca.", "success"); renderGrilla(); }
+    else mostrarToast(resultado.mensaje, "danger");
+  }
+
+  document.getElementById("btn-nuevo-libro").addEventListener("click", () => document.getElementById("modal-form-libro").classList.add("show"));
+
+  document.getElementById("form-nuevo-libro").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const grados = Array.from(document.querySelectorAll(".nl-grado:checked")).map(c => c.value);
+    const paleta = ["#1B3A5C", "#C77D2E", "#3E6B4F", "#A63A3A", "#C9A227"];
+    const libros = dbGet("libros");
+    libros.push({
+      id: "b" + Date.now(),
+      titulo: document.getElementById("nl-titulo").value,
+      autor: document.getElementById("nl-autor").value,
+      genero: nlGenero.value,
+      nivelMinedu: nlNivel.value,
+      grados: grados.length ? grados : [codigoGrado("secundaria", 1)],
+      paginas: Number(document.getElementById("nl-paginas").value),
+      stock: Number(document.getElementById("nl-stock").value),
+      disponibles: Number(document.getElementById("nl-stock").value),
+      sinopsis: document.getElementById("nl-sinopsis").value,
+      color: paleta[Math.floor(Math.random() * paleta.length)]
+    });
+    dbSet("libros", libros);
+    document.getElementById("modal-form-libro").classList.remove("show");
+    e.target.reset();
+    renderGrilla();
+    mostrarToast("Libro agregado al catálogo.", "success");
+  });
+
+  const elGenero = document.getElementById("el-genero");
+  const elNivel = document.getElementById("el-nivel");
+  if (elGenero) {
+    GENEROS.forEach(g => elGenero.innerHTML += `<option value="${g}">${g}</option>`);
+    NIVELES_MINEDU.forEach(n => elNivel.innerHTML += `<option value="${n.id}">${n.nombre}</option>`);
+  }
+
+  function editarLibro(id) {
+    const b = getBookById(id);
+    document.getElementById("el-id").value = b.id;
+    document.getElementById("el-titulo").value = b.titulo;
+    document.getElementById("el-autor").value = b.autor;
+    elGenero.value = b.genero;
+    elNivel.value = b.nivelMinedu;
+    document.getElementById("el-paginas").value = b.paginas;
+    document.getElementById("el-stock").value = b.stock;
+    document.getElementById("el-sinopsis").value = b.sinopsis;
+    document.querySelectorAll(".el-grado").forEach(c => c.checked = b.grados.includes(c.value));
+    document.getElementById("modal-editar-libro").classList.add("show");
+  }
+
+  const formEditar = document.getElementById("form-editar-libro");
+  if (formEditar) formEditar.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const id = document.getElementById("el-id").value;
+    const nuevoStock = Number(document.getElementById("el-stock").value);
+    const libro = getBookById(id);
+    const prestados = libro.stock - libro.disponibles;
+    const grados = Array.from(document.querySelectorAll(".el-grado:checked")).map(c => c.value);
+    actualizarLibro(id, {
+      titulo: document.getElementById("el-titulo").value,
+      autor: document.getElementById("el-autor").value,
+      genero: elGenero.value,
+      nivelMinedu: elNivel.value,
+      paginas: Number(document.getElementById("el-paginas").value),
+      stock: nuevoStock,
+      disponibles: Math.max(0, nuevoStock - prestados),
+      sinopsis: document.getElementById("el-sinopsis").value,
+      grados: grados.length ? grados : libro.grados
+    });
+    document.getElementById("modal-editar-libro").classList.remove("show");
+    renderGrilla();
+    mostrarToast("Libro actualizado.", "success");
+  });
+
+  function toggleBajaLibro(id) {
+    const activo = alternarBajaLibro(id);
+    renderGrilla();
+    mostrarToast(activo ? "Libro reactivado en el catálogo." : "Libro dado de baja del catálogo.", activo ? "success" : "info");
+  }
+</script>
+</body>
+</html>

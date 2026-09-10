@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi perfil — LectorIEP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-content">
+
+      <div class="page-header">
+        <span class="page-eyebrow-tag"><i class="bi bi-person-circle"></i> Perfil</span>
+        <h1 class="page-title">Mi cuenta</h1>
+      </div>
+
+      <div class="grid-cards" style="grid-template-columns:0.9fr 1.4fr;align-items:start;">
+        <div class="card-lector" style="text-align:center;">
+          <div style="width:84px;height:84px;border-radius:50%;background:var(--amber-soft);color:var(--navy-deep);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;margin:0 auto 14px;" id="perfil-avatar"></div>
+          <h3 id="perfil-nombre" style="margin-bottom:2px;"></h3>
+          <p class="text-muted-soft" id="perfil-rol" style="margin-bottom:14px;"></p>
+          <div id="perfil-extra"></div>
+        </div>
+
+        <div id="perfil-detalle"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div class="print-only" id="certificado-impresion">
+  <div style="text-align:center;padding:60px 40px;border:6px double #1B3A5C;">
+    <div style="font-size:14px;letter-spacing:2px;color:#5B6660;text-transform:uppercase;">IEP N.° 20150 "Mariscal Benavides" — UGEL 08 Cañete</div>
+    <h1 style="font-family:'Fraunces',serif;font-size:34px;margin:24px 0 6px;color:#122942;">Certificado de Lectura</h1>
+    <p style="font-size:15px;color:#5B6660;margin-bottom:30px;">Se otorga el presente reconocimiento a</p>
+    <div id="cert-nombre" style="font-family:'Fraunces',serif;font-size:28px;font-weight:600;margin-bottom:8px;"></div>
+    <div id="cert-aula" style="font-size:14px;color:#5B6660;margin-bottom:30px;"></div>
+    <p style="font-size:14px;max-width:520px;margin:0 auto 30px;line-height:1.7;">
+      Por su destacada participación en el Plan Lector institucional, habiendo alcanzado el nivel
+      <strong id="cert-nivel"></strong> con <strong id="cert-puntos"></strong> puntos de lectura y
+      <strong id="cert-libros"></strong> libro(s) completado(s).
+    </p>
+    <div style="display:flex;justify-content:center;gap:60px;margin-top:50px;">
+      <div style="text-align:center;">
+        <div style="border-top:1px solid #1F2A24;width:200px;padding-top:6px;font-size:12px;">Coordinación CIST</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="border-top:1px solid #1F2A24;width:200px;padding-top:6px;font-size:12px;" id="cert-fecha"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloud.js"></script>
+<script src="../js/filedb.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  initDatabase();
+  const sesion = renderShell("perfil.html");
+  const usuario = getUserById(sesion.id);
+  const rolLabel = { admin: "Coordinador CIST", docente: "Docente de Comunicación", bibliotecario: "Encargada de Biblioteca", estudiante: usuario.rol === "estudiante" ? `Estudiante — ${etiquetaGrado(usuario.nivel, usuario.grado)} "${usuario.seccion}"` : "Estudiante", padre: "Padre / Madre de familia" };
+
+  document.getElementById("perfil-avatar").textContent = usuario.avatar;
+  document.getElementById("perfil-nombre").textContent = usuario.nombre;
+  document.getElementById("perfil-rol").textContent = rolLabel[usuario.rol];
+
+  if (usuario.rol === "estudiante") {
+    const nivel = getNivelLector(usuario.puntos || 0);
+    document.getElementById("perfil-extra").innerHTML = `
+      <div class="stat-card" style="align-items:center;">
+        <span class="stat-value">${usuario.puntos || 0} pts</span>
+        <span class="stat-hint"><i class="bi ${nivel.icono}"></i> ${nivel.nombre}</span>
+      </div>
+      <button class="btn-lector btn-lector-outline btn-lector-sm" style="width:100%;margin-top:12px;" onclick="imprimirCertificado()"><i class="bi bi-award"></i> Imprimir certificado de lectura</button>`;
+
+    const misInsignias = dbGet("insigniasUsuario").filter(i => i.usuarioId === usuario.id);
+    document.getElementById("perfil-detalle").innerHTML = `
+      <div class="card-lector" style="margin-bottom:18px;">
+        <div class="section-title"><span>Mis insignias (${misInsignias.length}/${INSIGNIAS.length})</span></div>
+        <div class="grid-cards grid-cols-4" style="gap:10px;">
+          ${INSIGNIAS.map(b => {
+            const tengo = misInsignias.some(i => i.badgeId === b.id);
+            return `<div class="badge-earned ${tengo ? "" : "locked"}"><div class="badge-icon" style="background:${b.color}"><i class="bi ${b.icono}"></i></div><div class="badge-name">${b.nombre}</div><div class="badge-desc">${b.descripcion}</div></div>`;
+          }).join("")}
+        </div>
+      </div>
+      <div class="card-lector">
+        <div class="section-title"><span>Editar mis datos</span></div>
+        <form id="form-editar-perfil">
+          <div class="form-group-lector"><label class="form-label-lector">Nombre completo</label><input class="form-control-lector" id="ep-nombre" value="${usuario.nombre}" required></div>
+          <div class="form-group-lector"><label class="form-label-lector">Correo</label><input type="email" class="form-control-lector" id="ep-email" value="${usuario.email}" required></div>
+          <p class="text-muted-soft" style="font-size:12.5px;margin-top:-8px;">Aula: ${etiquetaGrado(usuario.nivel, usuario.grado)} "${usuario.seccion}" (para cambiarla, contacta a tu docente o a la Coordinación CIST)</p>
+          <div class="form-group-lector"><label class="form-label-lector">Nueva contraseña (opcional)</label><input class="form-control-lector" id="ep-password" placeholder="Dejar en blanco para no cambiarla"></div>
+          <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-save"></i> Guardar cambios</button>
+        </form>
+      </div>`;
+  } else {
+    document.getElementById("perfil-detalle").innerHTML = `
+      <div class="card-lector">
+        <div class="section-title"><span>Editar mis datos</span></div>
+        <form id="form-editar-perfil">
+          <div class="form-group-lector"><label class="form-label-lector">Nombre completo</label><input class="form-control-lector" id="ep-nombre" value="${usuario.nombre}" required></div>
+          <div class="form-group-lector"><label class="form-label-lector">Correo</label><input type="email" class="form-control-lector" id="ep-email" value="${usuario.email}" required></div>
+          ${usuario.cargo ? `<div class="form-group-lector"><label class="form-label-lector">Cargo</label><input class="form-control-lector" id="ep-cargo" value="${usuario.cargo}"></div>` : ""}
+          ${usuario.aulasAsignadas ? `<p class="text-muted-soft" style="font-size:12.5px;margin-top:-8px;">Aulas asignadas: ${usuario.aulasAsignadas.join(", ")}</p>` : ""}
+          ${usuario.hijosIds ? `<p class="text-muted-soft" style="font-size:12.5px;margin-top:-8px;">Hijo(a) vinculado(a): ${usuario.hijosIds.map(id => getUserById(id).nombre).join(", ")}</p>` : ""}
+          <div class="form-group-lector"><label class="form-label-lector">Nueva contraseña (opcional)</label><input class="form-control-lector" id="ep-password" placeholder="Dejar en blanco para no cambiarla"></div>
+          <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-save"></i> Guardar cambios</button>
+        </form>
+      </div>`;
+  }
+
+  document.getElementById("form-editar-perfil").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const cambios = { nombre: document.getElementById("ep-nombre").value, email: document.getElementById("ep-email").value };
+    const cargoInput = document.getElementById("ep-cargo");
+    if (cargoInput) cambios.cargo = cargoInput.value;
+    const nuevaPass = document.getElementById("ep-password").value.trim();
+    if (nuevaPass) cambios.password = nuevaPass;
+    const resultado = actualizarUsuario(usuario.id, cambios);
+    if (!resultado.ok) { mostrarToast(resultado.mensaje, "danger"); return; }
+    mostrarToast("Perfil actualizado.", "success");
+    setTimeout(() => window.location.reload(), 700);
+  });
+
+  function imprimirCertificado() {
+    if (usuario.rol !== "estudiante") return;
+    const nivel = getNivelLector(usuario.puntos || 0);
+    document.getElementById("cert-nombre").textContent = usuario.nombre;
+    document.getElementById("cert-aula").textContent = `${etiquetaGrado(usuario.nivel, usuario.grado)}, sección "${usuario.seccion}"`;
+    document.getElementById("cert-nivel").textContent = nivel.nombre;
+    document.getElementById("cert-puntos").textContent = usuario.puntos || 0;
+    document.getElementById("cert-libros").textContent = librosLeidosPorUsuario(usuario.id);
+    document.getElementById("cert-fecha").textContent = formatoFecha(new Date().toISOString().slice(0, 10));
+    window.print();
+  }
+</script>
+</body>
+</html>

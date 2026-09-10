@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Préstamos — LectorIEP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-content">
+
+      <div class="page-header">
+        <span class="page-eyebrow-tag"><i class="bi bi-arrow-left-right"></i> Circulación</span>
+        <h1 class="page-title">Préstamos y devoluciones</h1>
+        <p class="page-subtitle">Control de ejemplares prestados, fechas de devolución y alertas de atraso.</p>
+      </div>
+
+      <div class="grid-cards grid-cols-3" style="margin-bottom:20px;">
+        <div class="card-lector bar-left stat-card"><span class="stat-label">Préstamos vigentes</span><span class="stat-value" id="k-vigentes">0</span></div>
+        <div class="card-lector bar-brick stat-card"><span class="stat-label">Préstamos atrasados</span><span class="stat-value" id="k-atrasados">0</span></div>
+        <div class="card-lector bar-forest stat-card"><span class="stat-label">Devueltos este mes</span><span class="stat-value" id="k-devueltos">0</span></div>
+      </div>
+
+      <div class="card-lector">
+        <div class="tab-strip" id="tabs-prestamos">
+          <button class="active" data-tab="vigente">Vigentes</button>
+          <button data-tab="atrasado">Atrasados</button>
+          <button data-tab="devuelto">Historial</button>
+        </div>
+        <div id="tabla-prestamos"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast-stack" class="toast-stack"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloud.js"></script>
+<script src="../js/filedb.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  initDatabase();
+  const usuario = renderShell("prestamos.html");
+  actualizarEstadosPrestamos();
+
+  function kpis() {
+    const prestamos = dbGet("prestamos");
+    document.getElementById("k-vigentes").textContent = prestamos.filter(p => p.estado === "vigente").length;
+    document.getElementById("k-atrasados").textContent = prestamos.filter(p => p.estado === "atrasado").length;
+    const hoy = new Date(); const inicioMes = hoy.toISOString().slice(0, 7);
+    document.getElementById("k-devueltos").textContent = prestamos.filter(p => p.estado === "devuelto" && p.fechaDevolucionReal && p.fechaDevolucionReal.startsWith(inicioMes)).length;
+  }
+
+  let tabActual = "vigente";
+  function renderTabla() {
+    const prestamos = dbGet("prestamos").filter(p => p.estado === tabActual).sort((a, b) => a.fechaDevolucionEsperada.localeCompare(b.fechaDevolucionEsperada));
+    const cont = document.getElementById("tabla-prestamos");
+    if (prestamos.length === 0) {
+      cont.innerHTML = `<div class="empty-state"><i class="bi bi-inbox"></i>No hay registros en esta categoría.</div>`;
+      return;
+    }
+    cont.innerHTML = `<div class="table-scroll"><table class="table-lector">
+      <thead><tr><th>Estudiante</th><th>Libro</th><th>Préstamo</th><th>Devolución esperada</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${prestamos.map(p => {
+        const est = getUserById(p.usuarioId);
+        const libro = getBookById(p.libroId);
+        return `<tr>
+          <td>${est ? est.nombre : "—"}</td>
+          <td>${libro ? libro.titulo : "—"}</td>
+          <td>${formatoFecha(p.fechaPrestamo)}</td>
+          <td>${formatoFecha(p.fechaDevolucionEsperada)}</td>
+          <td>${chipEstado(p.estado)}</td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap;">
+            ${tabActual !== "devuelto" ? `<button class="btn-lector btn-lector-primary btn-lector-sm" onclick="marcarDevuelto('${p.id}')"><i class="bi bi-check2"></i> Devolver</button>
+              <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="editarPrestamoUI('${p.id}')"><i class="bi bi-pencil"></i></button>` : `<span class="text-muted-soft" style="font-size:12.5px;">Devuelto el ${formatoFecha(p.fechaDevolucionReal)}</span>`}
+            <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="borrarPrestamo('${p.id}')"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>`;
+      }).join("")}</tbody></table></div>`;
+  }
+
+  function chipEstado(estado) {
+    const map = { vigente: "var(--navy)", atrasado: "var(--brick)", devuelto: "var(--forest)" };
+    const label = { vigente: "Vigente", atrasado: "Atrasado", devuelto: "Devuelto" };
+    return `<span class="chip" style="--chip-color:${map[estado]}">${label[estado]}</span>`;
+  }
+
+  function marcarDevuelto(id) {
+    registrarDevolucion(id);
+    kpis();
+    renderTabla();
+    mostrarToast("Devolución registrada. El ejemplar vuelve al catálogo.", "success");
+  }
+
+  function editarPrestamoUI(id) {
+    const nuevaFecha = prompt("Nueva fecha de devolución esperada (AAAA-MM-DD):");
+    if (!nuevaFecha) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nuevaFecha)) { mostrarToast("Formato de fecha inválido. Usa AAAA-MM-DD.", "danger"); return; }
+    editarPrestamo(id, { fechaDevolucionEsperada: nuevaFecha });
+    kpis();
+    renderTabla();
+    mostrarToast("Fecha de devolución actualizada.", "success");
+  }
+
+  function borrarPrestamo(id) {
+    if (!confirm("¿Eliminar este préstamo? Si estaba vigente, el ejemplar volverá al catálogo.")) return;
+    eliminarPrestamo(id);
+    kpis();
+    renderTabla();
+    mostrarToast("Préstamo eliminado.", "info");
+  }
+
+  document.querySelectorAll("#tabs-prestamos button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#tabs-prestamos button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      tabActual = btn.dataset.tab;
+      renderTabla();
+    });
+  });
+
+  kpis();
+  renderTabla();
+</script>
+</body>
+</html>

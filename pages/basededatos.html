@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base de datos — LectorIEP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-content">
+
+      <div class="page-header">
+        <span class="page-eyebrow-tag"><i class="bi bi-hdd-network"></i> Datos del sistema</span>
+        <h1 class="page-title">Base de datos de LectorIEP</h1>
+        <p class="page-subtitle">Toda la información del sistema (usuarios, libros, préstamos, bitácoras, evaluaciones, aulas, actividades) se sincroniza con tu proyecto de Firebase para que la vean todos los usuarios, y además puedes vincularla a un archivo <code>.json</code> local o descargar copias de seguridad cuando quieras.</p>
+      </div>
+
+      <div class="grid-cards grid-cols-4" style="margin-bottom:20px;">
+        <div class="card-lector bar-left stat-card"><span class="stat-label">Colecciones de datos</span><span class="stat-value" id="k-colecciones">0</span></div>
+        <div class="card-lector bar-amber stat-card"><span class="stat-label">Registros totales</span><span class="stat-value" id="k-registros">0</span></div>
+        <div class="card-lector bar-forest stat-card"><span class="stat-label">Tamaño actual</span><span class="stat-value" id="k-tamano">0 KB</span></div>
+        <div class="card-lector bar-gold stat-card"><span class="stat-label">Último respaldo manual</span><span class="stat-value" style="font-size:16px;" id="k-ultimo">Nunca</span></div>
+      </div>
+
+      <div class="card-lector" id="tarjeta-nube" style="margin-bottom:20px;">
+        <div class="section-title"><span><i class="bi bi-cloud-check"></i> Conexión a la nube (Firebase)</span></div>
+        <div id="nube-estado"></div>
+        <div id="nube-acciones" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </div>
+
+      <div class="grid-cards" style="grid-template-columns:1fr 1fr;margin-bottom:20px;align-items:start;">
+
+        <div class="card-lector">
+          <div class="section-title"><span><i class="bi bi-magic"></i> Guardado automático en archivo</span></div>
+          <p class="text-muted-soft" style="font-size:13px;">Vincula un archivo <code>.json</code> en tu computadora: desde ese momento, cada cambio que hagas en el sistema (un préstamo, una lectura registrada, un usuario nuevo...) se guarda ahí solo, sin que tengas que hacer nada más.</p>
+          <div id="db-estado-auto" style="margin-bottom:14px;"></div>
+          <div id="db-acciones-auto" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+          <p class="text-muted-soft" style="font-size:11.5px;margin-top:10px;" id="db-nota-soporte"></p>
+        </div>
+
+        <div class="card-lector">
+          <div class="section-title"><span><i class="bi bi-download"></i> Respaldo manual</span></div>
+          <p class="text-muted-soft" style="font-size:13px;">Funciona en cualquier navegador. Descarga un archivo con toda la base de datos, o restaura el sistema completo a partir de uno que hayas guardado antes.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+            <button class="btn-lector btn-lector-amber" onclick="descargarAhora()"><i class="bi bi-download"></i> Descargar copia (.json)</button>
+            <label class="btn-lector btn-lector-outline" style="cursor:pointer;">
+              <i class="bi bi-upload"></i> Restaurar desde archivo
+              <input type="file" id="input-restaurar" accept=".json" style="display:none;">
+            </label>
+          </div>
+          <p class="text-muted-soft" style="font-size:12px;background:rgba(166,58,58,0.07);border-radius:8px;padding:8px 10px;">
+            <i class="bi bi-exclamation-triangle" style="color:var(--brick);"></i> Restaurar reemplaza <strong>toda</strong> la información actual del sistema por la del archivo. Úsalo con cuidado.
+          </p>
+        </div>
+      </div>
+
+      <div class="card-lector" style="margin-bottom:20px;">
+        <div class="section-title"><span>Detalle por colección</span></div>
+        <div id="tabla-colecciones"></div>
+      </div>
+
+      <div class="card-lector">
+        <div class="section-title"><span style="color:var(--brick);"><i class="bi bi-exclamation-octagon"></i> Zona de reinicio</span></div>
+        <p class="text-muted-soft" style="font-size:13px;">Borra TODOS los datos actuales (usuarios, aulas, libros, préstamos, bitácoras, evaluaciones...) y deja el sistema como recién instalado, con solo la cuenta inicial del administrador. <strong>Si la nube está conectada, esto también borra los datos compartidos que ven todos los usuarios</strong>, no solo los de este dispositivo. No se puede deshacer — descarga una copia antes si quieres conservar algo.</p>
+        <button class="btn-lector btn-lector-outline" style="border-color:var(--brick);color:var(--brick);" onclick="reiniciarTodo()"><i class="bi bi-arrow-counterclockwise"></i> Restablecer a instalación de fábrica</button>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast-stack" class="toast-stack"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloud.js"></script>
+<script src="../js/filedb.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  initDatabase();
+  const usuario = renderShell("basededatos.html");
+
+  function actualizarEstadisticas() {
+    document.getElementById("k-colecciones").textContent = COLECCIONES_BD.length;
+    document.getElementById("k-registros").textContent = totalRegistrosBaseDatos();
+    document.getElementById("k-tamano").textContent = tamanoBaseDatosKB() + " KB";
+    const ultimo = ultimoRespaldoBD();
+    document.getElementById("k-ultimo").textContent = ultimo ? formatoFecha(ultimo.slice(0, 10)) : "Nunca";
+
+    const nombresLegibles = {
+      usuarios: "Usuarios", libros: "Libros", prestamos: "Préstamos", bitacora: "Bitácora de lectura",
+      quizzes: "Evaluaciones", resultadosQuiz: "Resultados de evaluación", insigniasUsuario: "Insignias otorgadas",
+      aulas: "Aulas", actividades: "Actividades del plan lector", asignaciones: "Lecturas asignadas"
+    };
+    document.getElementById("tabla-colecciones").innerHTML = `<div class="table-scroll"><table class="table-lector">
+      <thead><tr><th>Colección</th><th>Registros</th></tr></thead>
+      <tbody>${COLECCIONES_BD.map(c => `<tr><td>${nombresLegibles[c] || c}</td><td>${dbGet(c).length}</td></tr>`).join("")}</tbody>
+    </table></div>`;
+  }
+  actualizarEstadisticas();
+
+  function renderAuto() {
+    const soportado = FSA_DISPONIBLE;
+    document.getElementById("db-nota-soporte").textContent = soportado
+      ? "Disponible en este navegador (Chrome, Edge, Opera)."
+      : "Tu navegador actual no soporta esta función (típico en Firefox y Safari). Usa el respaldo manual de al lado.";
+
+    const estado = estadoArchivoBD();
+    const contEstado = document.getElementById("db-estado-auto");
+    const contAcciones = document.getElementById("db-acciones-auto");
+
+    if (!soportado) {
+      contEstado.innerHTML = `<div class="empty-state" style="padding:16px;"><i class="bi bi-hdd-network"></i>No disponible en este navegador.</div>`;
+      contAcciones.innerHTML = "";
+      return;
+    }
+
+    if (estado.vinculado) {
+      contEstado.innerHTML = `<div class="chip" style="--chip-color:var(--forest);"><i class="bi bi-check2-circle"></i> Guardando automáticamente en "${estado.nombre}"</div>`;
+      contAcciones.innerHTML = `<button class="btn-lector btn-lector-outline btn-lector-sm" onclick="desvincular()"><i class="bi bi-x-circle"></i> Dejar de vincular</button>`;
+    } else {
+      contEstado.innerHTML = `<div class="chip" style="--chip-color:var(--ink-soft);"><i class="bi bi-hdd"></i> Ningún archivo vinculado todavía</div>`;
+      contAcciones.innerHTML = `
+        <button class="btn-lector btn-lector-primary btn-lector-sm" onclick="crearVinculo()"><i class="bi bi-file-earmark-plus"></i> Crear y vincular archivo nuevo</button>
+        <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="abrirVinculo()"><i class="bi bi-folder2-open"></i> Vincular archivo existente</button>
+      `;
+    }
+  }
+  renderAuto();
+
+  async function crearVinculo() {
+    const r = await vincularArchivoNuevo();
+    if (r.cancelado) return;
+    if (!r.ok) { mostrarToast(r.mensaje, "danger"); return; }
+    mostrarToast(`Archivo "${r.nombre}" vinculado. Se guardará automáticamente.`, "success");
+    renderAuto();
+  }
+
+  async function abrirVinculo() {
+    const r = await vincularArchivoExistente();
+    if (r.cancelado) return;
+    if (!r.ok) { mostrarToast(r.mensaje, "danger"); return; }
+    mostrarToast(`Base de datos restaurada desde "${r.nombre}" y vinculada para guardado automático.`, "success");
+    renderAuto();
+    actualizarEstadisticas();
+  }
+
+  function desvincular() {
+    desvincularArchivoBD();
+    renderAuto();
+    mostrarToast("Se dejó de guardar automáticamente. Tus datos siguen aquí, solo que ya no se sincronizan con ese archivo.", "info");
+  }
+
+  function descargarAhora() {
+    descargarRespaldoBD();
+    actualizarEstadisticas();
+    mostrarToast("Copia de seguridad descargada.", "success");
+  }
+
+  document.getElementById("input-restaurar").addEventListener("change", async (e) => {
+    const archivo = e.target.files[0];
+    if (!archivo) return;
+    if (!confirm("Esto reemplazará TODA la información actual del sistema por la del archivo. ¿Continuar?")) { e.target.value = ""; return; }
+    const resultado = await restaurarRespaldoBD(archivo);
+    if (!resultado.ok) { mostrarToast(resultado.mensaje, "danger"); e.target.value = ""; return; }
+    mostrarToast("Base de datos restaurada correctamente. Recargando...", "success");
+    setTimeout(() => window.location.reload(), 900);
+  });
+
+  function reiniciarTodo() {
+    const advertenciaNube = cloudDisponible() ? " Esto también borrará los datos compartidos en la nube que ven todos los usuarios." : "";
+    if (!confirm("¿Borrar TODOS los datos y dejar el sistema como recién instalado (solo con la cuenta inicial del administrador)?" + advertenciaNube + " Esta acción no se puede deshacer.")) return;
+    resetDatabase();
+    mostrarToast("Sistema restablecido a la instalación de fábrica.", "info");
+    setTimeout(() => window.location.reload(), 900);
+  }
+
+  /* ---------------- Conexión a la nube ---------------- */
+  function renderNube() {
+    const cont = document.getElementById("nube-estado");
+    const acciones = document.getElementById("nube-acciones");
+    if (!cloudConfigurada()) {
+      cont.innerHTML = `<div class="chip" style="--chip-color:var(--ink-soft);"><i class="bi bi-cloud-slash"></i> No configurada — el sistema solo guarda datos en este navegador</div>
+        <p class="text-muted-soft" style="font-size:12.5px;margin-top:8px;">Edita <code>js/firebase-config.js</code> con los datos de tu proyecto de Firebase antes de desplegar, para que todos compartan la misma base de datos. Instrucciones dentro del archivo y en el README.</p>`;
+      acciones.innerHTML = "";
+      return;
+    }
+    if (cloudDisponible()) {
+      cont.innerHTML = `<div class="chip" style="--chip-color:var(--forest);"><i class="bi bi-cloud-check"></i> Conectada — todos los usuarios comparten esta base de datos</div>`;
+      acciones.innerHTML = `<button class="btn-lector btn-lector-outline btn-lector-sm" onclick="forzarSubidaNube()"><i class="bi bi-cloud-upload"></i> Forzar subida de todo a la nube</button>
+        <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="forzarDescargaNube()"><i class="bi bi-cloud-download"></i> Forzar descarga desde la nube</button>`;
+    } else {
+      cont.innerHTML = `<div class="chip" style="--chip-color:var(--brick);"><i class="bi bi-cloud-slash"></i> Configurada, pero no se pudo conectar (revisa tu conexión o las reglas de Firestore)</div>`;
+      acciones.innerHTML = `<button class="btn-lector btn-lector-outline btn-lector-sm" onclick="window.location.reload()"><i class="bi bi-arrow-clockwise"></i> Reintentar</button>`;
+    }
+  }
+  renderNube();
+
+  async function forzarSubidaNube() {
+    const resultado = await subirTodoAhoraANube();
+    mostrarToast(resultado.ok ? "Base de datos subida a la nube." : "No se pudo subir a la nube.", resultado.ok ? "success" : "danger");
+  }
+
+  async function forzarDescargaNube() {
+    const resultado = await sincronizarDesdeNube(8000);
+    if (!resultado.ok) { mostrarToast("No se pudo descargar desde la nube.", "danger"); return; }
+    mostrarToast("Datos actualizados desde la nube. Recargando...", "success");
+    setTimeout(() => window.location.reload(), 700);
+  }
+</script>
+</body>
+</html>

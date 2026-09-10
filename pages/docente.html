@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel docente — LectorIEP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-content">
+
+      <div class="page-header">
+        <span class="page-eyebrow-tag"><i class="bi bi-easel"></i> Panel docente</span>
+        <h1 class="page-title" id="titulo-docente">Mis aulas</h1>
+        <p class="page-subtitle">Seguimiento del plan lector de tus estudiantes: avance, comprensión lectora y alertas de baja participación.</p>
+      </div>
+
+      <div class="grid-cards grid-cols-4" style="margin-bottom:20px;">
+        <div class="card-lector bar-left stat-card"><span class="stat-label">Estudiantes a cargo</span><span class="stat-value" id="k-estudiantes">0</span></div>
+        <div class="card-lector bar-forest stat-card"><span class="stat-label">Libros leídos (mes)</span><span class="stat-value" id="k-librosmes">0</span></div>
+        <div class="card-lector bar-amber stat-card"><span class="stat-label">Promedio de comprensión</span><span class="stat-value" id="k-comprension">—</span></div>
+        <div class="card-lector bar-brick stat-card"><span class="stat-label">Estudiantes en alerta</span><span class="stat-value" id="k-alertas">0</span></div>
+      </div>
+
+      <div class="tab-strip" id="tabs-docente">
+        <button class="active" data-tab="resumen">Resumen y avance</button>
+        <button data-tab="aulas">Mis aulas y estudiantes</button>
+      </div>
+
+      <div id="panel-resumen">
+        <div class="card-lector" style="margin-bottom:20px;">
+          <div class="section-title">
+            <span>Estudiantes por aula</span>
+            <select class="form-select-lector" id="f-aula-doc" style="max-width:200px;"></select>
+          </div>
+          <div id="tabla-estudiantes"></div>
+        </div>
+
+        <div class="grid-cards" style="grid-template-columns:0.9fr 1.4fr;align-items:start;margin-bottom:20px;">
+          <div class="card-lector">
+            <div class="section-title"><span>Asignar lectura</span></div>
+            <form id="form-asignar">
+              <div class="form-group-lector"><label class="form-label-lector">Aula</label>
+                <select class="form-select-lector" id="as-aula"></select>
+              </div>
+              <div class="form-group-lector"><label class="form-label-lector">Libro</label>
+                <select class="form-select-lector" id="as-libro"></select>
+              </div>
+              <div class="form-group-lector"><label class="form-label-lector">Fecha límite</label>
+                <input type="date" class="form-control-lector" id="as-fecha" required>
+              </div>
+              <div class="form-group-lector"><label class="form-label-lector">Indicación para el estudiante</label>
+                <textarea class="form-control-lector" id="as-nota" rows="2" placeholder="Ej. Leer y preparar un resumen oral."></textarea>
+              </div>
+              <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-journal-plus"></i> Asignar</button>
+            </form>
+          </div>
+
+          <div class="card-lector">
+            <div class="section-title"><span>Lecturas asignadas</span></div>
+            <div id="lista-asignaciones"></div>
+          </div>
+        </div>
+
+        <div class="card-lector">
+          <div class="section-title"><span><i class="bi bi-exclamation-triangle"></i> Alertas de participación</span></div>
+          <p class="text-muted-soft" style="font-size:13px;margin-top:-8px;margin-bottom:12px;">Estudiantes sin registros de lectura en los últimos 7 días.</p>
+          <div id="lista-alertas"></div>
+        </div>
+      </div>
+
+      <div id="panel-aulas-gestion" style="display:none;">
+        <div class="card-lector" style="margin-bottom:20px;">
+          <div class="section-title">
+            <span>Mis aulas</span>
+            <button class="btn-lector btn-lector-amber btn-lector-sm" onclick="document.getElementById('modal-nueva-aula').classList.add('show')"><i class="bi bi-plus-lg"></i> Nueva aula</button>
+          </div>
+          <div id="tabla-mis-aulas"></div>
+        </div>
+
+        <div class="grid-cards" style="grid-template-columns:0.9fr 1.4fr;align-items:start;margin-bottom:20px;">
+          <div class="card-lector">
+            <div class="section-title"><span>Agregar estudiante</span></div>
+            <form id="form-nuevo-estudiante">
+              <div class="form-group-lector"><label class="form-label-lector">Nombre completo</label><input class="form-control-lector" id="ne-nombre" required></div>
+              <div class="form-group-lector"><label class="form-label-lector">Correo</label><input type="email" class="form-control-lector" id="ne-correo" required></div>
+              <div class="form-group-lector"><label class="form-label-lector">Aula</label><select class="form-select-lector" id="ne-aula"></select></div>
+              <div class="form-group-lector"><label class="form-label-lector">Contraseña temporal</label><input class="form-control-lector" id="ne-password" value="lector123" required></div>
+              <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-person-plus"></i> Registrar estudiante</button>
+            </form>
+          </div>
+
+          <div class="card-lector">
+            <div class="section-title"><span>Registro masivo por plantilla</span></div>
+            <p class="text-muted-soft" style="font-size:13px;">Descarga la plantilla, complétala con tus estudiantes (columnas: Nombre, Correo, Aula en formato "Grado-Sección", Contraseña) y súbela aquí. Solo se crearán estudiantes en aulas a tu cargo.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+              <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="descargarPlantilla()"><i class="bi bi-download"></i> Descargar plantilla (.xlsx)</button>
+              <label class="btn-lector btn-lector-primary btn-lector-sm" style="cursor:pointer;">
+                <i class="bi bi-upload"></i> Subir plantilla completada
+                <input type="file" id="input-plantilla" accept=".xlsx,.xls,.csv" style="display:none;">
+              </label>
+            </div>
+            <div id="resultado-importacion"></div>
+          </div>
+        </div>
+
+        <div class="card-lector">
+          <div class="section-title">
+            <span>Roster de estudiantes</span>
+            <select class="form-select-lector" id="f-aula-roster" style="max-width:200px;"></select>
+          </div>
+          <div id="tabla-roster"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast-stack" class="toast-stack"></div>
+
+<div class="modal-backdrop-lector" id="modal-nueva-aula">
+  <div class="modal-box">
+    <div class="modal-box-title"><h3 style="margin:0;">Nueva aula</h3><button class="modal-close-btn" onclick="document.getElementById('modal-nueva-aula').classList.remove('show')"><i class="bi bi-x-lg"></i></button></div>
+    <form id="form-nueva-aula">
+      <div class="grid-cards grid-cols-2">
+        <div class="form-group-lector"><label class="form-label-lector">Nivel</label>
+          <select class="form-select-lector" id="na-nivel">
+            <option value="primaria">Primaria</option>
+            <option value="secundaria" selected>Secundaria</option>
+          </select>
+        </div>
+        <div class="form-group-lector"><label class="form-label-lector">Grado</label>
+          <select class="form-select-lector" id="na-grado"></select>
+        </div>
+        <div class="form-group-lector" style="grid-column:1/-1;"><label class="form-label-lector">Sección</label>
+          <select class="form-select-lector" id="na-seccion"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select>
+        </div>
+      </div>
+      <div class="form-group-lector"><label class="form-label-lector">Meta mensual (libros por estudiante)</label><input type="number" min="1" class="form-control-lector" id="na-meta" value="2" required></div>
+      <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-save"></i> Crear aula</button>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop-lector" id="modal-reasignar">
+  <div class="modal-box">
+    <div class="modal-box-title"><h3 style="margin:0;">Cambiar de aula</h3><button class="modal-close-btn" onclick="document.getElementById('modal-reasignar').classList.remove('show')"><i class="bi bi-x-lg"></i></button></div>
+    <form id="form-reasignar">
+      <input type="hidden" id="ra-usuario-id">
+      <p style="font-size:13.5px;margin-top:-4px;" id="ra-nombre-estudiante"></p>
+      <div class="form-group-lector"><label class="form-label-lector">Nueva aula</label><select class="form-select-lector" id="ra-aula"></select></div>
+      <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-arrow-left-right"></i> Reasignar</button>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop-lector" id="modal-editar-asignacion">
+  <div class="modal-box">
+    <div class="modal-box-title"><h3 style="margin:0;">Editar lectura asignada</h3><button class="modal-close-btn" onclick="document.getElementById('modal-editar-asignacion').classList.remove('show')"><i class="bi bi-x-lg"></i></button></div>
+    <form id="form-editar-asignacion">
+      <input type="hidden" id="ea2-id">
+      <div class="form-group-lector"><label class="form-label-lector">Libro</label><select class="form-select-lector" id="ea2-libro"></select></div>
+      <div class="form-group-lector"><label class="form-label-lector">Fecha límite</label><input type="date" class="form-control-lector" id="ea2-fecha" required></div>
+      <div class="form-group-lector"><label class="form-label-lector">Indicación</label><textarea class="form-control-lector" id="ea2-nota" rows="2"></textarea></div>
+      <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-save"></i> Guardar cambios</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloud.js"></script>
+<script src="../js/filedb.js"></script>
+<script src="../js/app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+  initDatabase();
+  const usuario = renderShell("docente.html");
+
+  const todasAulas = dbGet("aulas");
+  let misAulas = usuario.rol === "admin" ? todasAulas : todasAulas.filter(a => normalizarDocenteIds(a.docenteIds).includes(usuario.id));
+  document.getElementById("titulo-docente").textContent = usuario.rol === "admin" ? "Todas las aulas del colegio" : "Mis aulas";
+
+  const selAula = document.getElementById("f-aula-doc");
+  selAula.innerHTML = `<option value="">Todas mis aulas</option>` + misAulas.map(a => `<option value="${a.id}">${etiquetaAula(a)}</option>`).join("");
+
+  function estudiantesDeAulas(aulaIds, incluirInactivos) {
+    return dbGet("usuarios").filter(u => u.rol === "estudiante" && (incluirInactivos || usuarioActivo(u)) && aulaIds.some(id => {
+      const a = todasAulas.find(x => x.id === id);
+      return a && a.nivel === u.nivel && a.grado === u.grado && a.seccion === u.seccion;
+    }));
+  }
+
+  function actualizarPanel() {
+    const aulaId = selAula.value;
+    const aulaIds = aulaId ? [aulaId] : misAulas.map(a => a.id);
+    const estudiantes = estudiantesDeAulas(aulaIds);
+
+    document.getElementById("k-estudiantes").textContent = estudiantes.length;
+
+    const bitacora = dbGet("bitacora");
+    const inicioMes = new Date().toISOString().slice(0, 7);
+    const idsEst = new Set(estudiantes.map(e => e.id));
+    const librosMes = new Set(bitacora.filter(l => idsEst.has(l.usuarioId) && l.fecha.startsWith(inicioMes)).map(l => l.usuarioId + "-" + l.libroId));
+    document.getElementById("k-librosmes").textContent = librosMes.size;
+
+    const resultados = dbGet("resultadosQuiz").filter(r => idsEst.has(r.usuarioId));
+    const promedio = resultados.length ? Math.round(resultados.reduce((a, r) => a + r.puntaje, 0) / resultados.length) : null;
+    document.getElementById("k-comprension").textContent = promedio !== null ? promedio + "%" : "—";
+
+    const enAlerta = estudiantes.filter(estudianteEnRiesgo);
+    document.getElementById("k-alertas").textContent = enAlerta.length;
+
+    const contTabla = document.getElementById("tabla-estudiantes");
+    if (estudiantes.length === 0) { contTabla.innerHTML = `<div class="empty-state"><i class="bi bi-people"></i>No hay estudiantes asignados.</div>`; }
+    else {
+      contTabla.innerHTML = `<div class="table-scroll"><table class="table-lector">
+        <thead><tr><th>Estudiante</th><th>Aula</th><th>Libros leídos</th><th>Puntos</th><th>Racha</th><th>Última lectura</th><th>Estado</th></tr></thead>
+        <tbody>${estudiantes.map(e => {
+          const libros = librosLeidosPorUsuario(e.id);
+          const activas = alertasActivas();
+          const alerta = estudianteEnRiesgo(e);
+          const estadoTexto = !activas ? "Sin iniciar" : (alerta ? "En riesgo" : "Al día");
+          const estadoColor = !activas ? "var(--muted, #8a8578)" : (alerta ? "var(--brick)" : "var(--forest)");
+          return `<tr>
+            <td>${e.nombre}</td><td>${etiquetaGrado(e.nivel, e.grado)} "${e.seccion}"</td><td>${libros}</td><td>${e.puntos || 0}</td>
+            <td><i class="bi bi-fire" style="color:var(--amber);"></i> ${e.racha || 0}</td>
+            <td>${formatoFecha(e.ultimaLectura)}</td>
+            <td><span class="chip" style="--chip-color:${estadoColor}">${estadoTexto}</span></td>
+          </tr>`;
+        }).join("")}</tbody></table></div>`;
+    }
+
+    const contAlertas = document.getElementById("lista-alertas");
+    if (!alertasActivas()) {
+      const cfg = obtenerConfiguracion();
+      const mensaje = cfg.fechaInicioAccesos
+        ? `Los accesos de los estudiantes inician el ${formatoFecha(cfg.fechaInicioAccesos)}. Las alertas de inactividad se activarán desde esa fecha.`
+        : `Aún no se ha definido la fecha de inicio de accesos de los estudiantes (Configuración → General). Hasta entonces, no se mostrarán alertas.`;
+      contAlertas.innerHTML = `<div class="empty-state"><i class="bi bi-hourglass-split"></i>${mensaje}</div>`;
+    }
+    else if (enAlerta.length === 0) { contAlertas.innerHTML = `<div class="empty-state"><i class="bi bi-emoji-smile"></i>Todos tus estudiantes están al día. ¡Buen trabajo!</div>`; }
+    else {
+      contAlertas.innerHTML = enAlerta.map(e => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);">
+          <div><strong style="font-size:13.5px;">${e.nombre}</strong> <span class="text-muted-soft" style="font-size:12.5px;">— ${etiquetaGrado(e.nivel, e.grado)} "${e.seccion}"</span></div>
+          <span class="chip" style="--chip-color:var(--brick);">Sin lectura desde ${formatoFecha(e.ultimaLectura)}</span>
+        </div>`).join("");
+    }
+  }
+
+  selAula.addEventListener("change", actualizarPanel);
+  actualizarPanel();
+
+  /* ---------------- Asignación de lecturas ---------------- */
+  const asAula = document.getElementById("as-aula");
+  const asLibro = document.getElementById("as-libro");
+  asAula.innerHTML = misAulas.map(a => `<option value="${a.id}">${etiquetaAula(a)}</option>`).join("");
+  asLibro.innerHTML = dbGet("libros").filter(libroActivo).map(b => `<option value="${b.id}">${b.titulo}</option>`).join("");
+
+  function renderAsignaciones() {
+    const todas = misAulas.flatMap(a => asignacionesDeAula(a.id).map(x => ({ ...x, aula: a })));
+    const cont = document.getElementById("lista-asignaciones");
+    if (todas.length === 0) { cont.innerHTML = `<div class="empty-state"><i class="bi bi-journal-bookmark"></i>Aún no asignaste lecturas.</div>`; return; }
+    todas.sort((a, b) => a.fechaLimite.localeCompare(b.fechaLimite));
+    cont.innerHTML = `<div class="table-scroll"><table class="table-lector">
+      <thead><tr><th>Aula</th><th>Libro</th><th>Fecha límite</th><th>Indicación</th><th></th></tr></thead>
+      <tbody>${todas.map(a => `<tr>
+        <td>${etiquetaAula(a.aula)}</td><td>${getBookById(a.libroId).titulo}</td><td>${formatoFecha(a.fechaLimite)}</td>
+        <td style="max-width:220px;">${a.nota || "—"}</td>
+        <td style="display:flex;gap:6px;">
+          <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="editarAsignacionUI('${a.id}')"><i class="bi bi-pencil"></i></button>
+          <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="quitarAsignacion('${a.id}')"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>`).join("")}</tbody></table></div>`;
+  }
+  renderAsignaciones();
+
+  document.getElementById("form-asignar").addEventListener("submit", (e) => {
+    e.preventDefault();
+    crearAsignacion({
+      aulaId: asAula.value, libroId: asLibro.value, docenteId: usuario.id,
+      fechaLimite: document.getElementById("as-fecha").value,
+      nota: document.getElementById("as-nota").value
+    });
+    e.target.reset();
+    renderAsignaciones();
+    mostrarToast("Lectura asignada al aula.", "success");
+  });
+
+  function quitarAsignacion(id) {
+    eliminarAsignacion(id);
+    renderAsignaciones();
+    mostrarToast("Asignación eliminada.", "info");
+  }
+
+  function editarAsignacionUI(id) {
+    const asig = dbGet("asignaciones").find(a => a.id === id);
+    document.getElementById("ea2-id").value = asig.id;
+    document.getElementById("ea2-libro").innerHTML = asLibro.innerHTML;
+    document.getElementById("ea2-libro").value = asig.libroId;
+    document.getElementById("ea2-fecha").value = asig.fechaLimite;
+    document.getElementById("ea2-nota").value = asig.nota || "";
+    document.getElementById("modal-editar-asignacion").classList.add("show");
+  }
+
+  document.getElementById("form-editar-asignacion").addEventListener("submit", (e) => {
+    e.preventDefault();
+    editarAsignacion(document.getElementById("ea2-id").value, {
+      libroId: document.getElementById("ea2-libro").value,
+      fechaLimite: document.getElementById("ea2-fecha").value,
+      nota: document.getElementById("ea2-nota").value
+    });
+    document.getElementById("modal-editar-asignacion").classList.remove("show");
+    renderAsignaciones();
+    mostrarToast("Asignación actualizada.", "success");
+  });
+
+  /* ---------------- Tabs ---------------- */
+  document.querySelectorAll("#tabs-docente button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#tabs-docente button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const esResumen = btn.dataset.tab === "resumen";
+      document.getElementById("panel-resumen").style.display = esResumen ? "block" : "none";
+      document.getElementById("panel-aulas-gestion").style.display = esResumen ? "none" : "block";
+      if (!esResumen) { renderMisAulas(); renderRoster(); }
+    });
+  });
+
+  /* ---------------- Mis aulas (gestión) ---------------- */
+  function renderMisAulas() {
+    const cont = document.getElementById("tabla-mis-aulas");
+    if (misAulas.length === 0) { cont.innerHTML = `<div class="empty-state"><i class="bi bi-door-open"></i>Aún no tienes aulas creadas.</div>`; return; }
+    cont.innerHTML = `<div class="table-scroll"><table class="table-lector">
+      <thead><tr><th>Aula</th><th>Meta mensual</th><th>Estudiantes activos</th><th></th></tr></thead>
+      <tbody>${misAulas.map(a => {
+        const n = estudiantesDeAulas([a.id]).length;
+        return `<tr><td>${etiquetaAula(a)}</td><td>${a.metaMensualLibros} libro(s)/mes</td><td>${n}</td>
+          <td style="display:flex;gap:6px;">
+            <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="editarMetaAula('${a.id}', ${a.metaMensualLibros})"><i class="bi bi-pencil"></i></button>
+            <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="borrarMiAula('${a.id}')"><i class="bi bi-trash"></i></button>
+          </td></tr>`;
+      }).join("")}</tbody></table></div>`;
+  }
+
+  function editarMetaAula(id, metaActual) {
+    const nuevaMeta = prompt("Nueva meta mensual de libros por estudiante:", metaActual);
+    if (!nuevaMeta || isNaN(Number(nuevaMeta)) || Number(nuevaMeta) < 1) return;
+    actualizarAula(id, { metaMensualLibros: nuevaMeta });
+    const a = misAulas.find(x => x.id === id); if (a) a.metaMensualLibros = Number(nuevaMeta);
+    renderMisAulas();
+    mostrarToast("Meta mensual actualizada.", "success");
+  }
+
+  function borrarMiAula(id) {
+    if (!confirm("¿Eliminar esta aula? Solo es posible si no tiene estudiantes activos.")) return;
+    const resultado = eliminarAula(id);
+    if (!resultado.ok) { mostrarToast(resultado.mensaje, "danger"); return; }
+    misAulas = misAulas.filter(a => a.id !== id);
+    renderMisAulas(); refrescarSelectAulas(); refrescarSelectRoster();
+    mostrarToast("Aula eliminada.", "info");
+  }
+
+  const naNivel = document.getElementById("na-nivel");
+  const naGrado = document.getElementById("na-grado");
+  naNivel.addEventListener("change", () => poblarSelectGrado(naGrado, naNivel.value));
+  poblarSelectGrado(naGrado, naNivel.value);
+
+  document.getElementById("form-nueva-aula").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const resultado = crearAula({
+      nivel: naNivel.value,
+      grado: naGrado.value,
+      seccion: document.getElementById("na-seccion").value,
+      docenteIds: [usuario.id],
+      metaMensualLibros: document.getElementById("na-meta").value
+    });
+    if (!resultado.ok) { mostrarToast(resultado.mensaje, "danger"); return; }
+    mostrarToast("Aula creada. Recargando...", "success");
+    setTimeout(() => window.location.reload(), 700);
+  });
+
+  /* ---------------- Agregar estudiante individual ---------------- */
+  const neAula = document.getElementById("ne-aula");
+  function refrescarSelectAulas() {
+    neAula.innerHTML = misAulas.map(a => `<option value="${a.id}">${etiquetaAula(a)}</option>`).join("") || `<option value="">Crea un aula primero</option>`;
+  }
+  refrescarSelectAulas();
+
+  document.getElementById("form-nuevo-estudiante").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const aula = misAulas.find(a => a.id === neAula.value);
+    if (!aula) { mostrarToast("Primero crea un aula.", "warning"); return; }
+    const resultado = crearUsuario({
+      nombre: document.getElementById("ne-nombre").value,
+      email: document.getElementById("ne-correo").value,
+      password: document.getElementById("ne-password").value,
+      rol: "estudiante", nivel: aula.nivel, grado: aula.grado, seccion: aula.seccion
+    });
+    if (!resultado.ok) { mostrarToast(resultado.mensaje, "danger"); return; }
+    e.target.reset();
+    document.getElementById("ne-password").value = "lector123";
+    renderRoster();
+    mostrarToast("Estudiante registrado en el aula.", "success");
+  });
+
+  /* ---------------- Plantilla masiva ---------------- */
+  function descargarPlantilla() {
+    const filas = [
+      { Nombre: "Ejemplo Estudiante Uno", Correo: "ejemplo1@iep20150.edu.pe", Aula: misAulas[0] ? `${getNivelEducativo(misAulas[0].nivel).nombre}-${misAulas[0].grado}-${misAulas[0].seccion}` : "Secundaria-1-A", "Contraseña": "lector123" }
+    ];
+    const hoja = XLSX.utils.json_to_sheet(filas);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, "Estudiantes");
+    XLSX.writeFile(libro, "plantilla-estudiantes-lectoriep.xlsx");
+  }
+
+  document.getElementById("input-plantilla").addEventListener("change", (e) => {
+    const archivo = e.target.files[0];
+    if (!archivo) return;
+    const lector = new FileReader();
+    lector.onload = (evt) => {
+      const datos = new Uint8Array(evt.target.result);
+      const libro = XLSX.read(datos, { type: "array" });
+      const hoja = libro.Sheets[libro.SheetNames[0]];
+      const filas = XLSX.utils.sheet_to_json(hoja);
+      const aulasPermitidas = misAulas.map(a => a.id);
+      const resumen = importarEstudiantesMasivo(filas, aulasPermitidas);
+      document.getElementById("resultado-importacion").innerHTML = `
+        <div class="empty-state" style="text-align:left;padding:14px;">
+          <strong style="color:var(--forest);">${resumen.creados} estudiante(s) creado(s).</strong>
+          ${resumen.omitidos ? `<br><span style="color:var(--brick);">${resumen.omitidos} fila(s) omitida(s).</span>` : ""}
+          ${resumen.errores.length ? `<ul style="font-size:12.5px;margin-top:8px;">${resumen.errores.slice(0, 8).map(er => `<li>${er}</li>`).join("")}</ul>` : ""}
+        </div>`;
+      renderRoster();
+      mostrarToast(`Importación completa: ${resumen.creados} creado(s).`, resumen.creados ? "success" : "warning");
+      e.target.value = "";
+    };
+    lector.readAsArrayBuffer(archivo);
+  });
+
+  /* ---------------- Roster con reasignar / dar de baja ---------------- */
+  const fAulaRoster = document.getElementById("f-aula-roster");
+  function refrescarSelectRoster() {
+    fAulaRoster.innerHTML = `<option value="">Todas mis aulas</option>` + misAulas.map(a => `<option value="${a.id}">${etiquetaAula(a)}</option>`).join("");
+  }
+  refrescarSelectRoster();
+
+  function renderRoster() {
+    const aulaId = fAulaRoster.value;
+    const aulaIds = aulaId ? [aulaId] : misAulas.map(a => a.id);
+    const estudiantes = estudiantesDeAulas(aulaIds, true).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    const cont = document.getElementById("tabla-roster");
+    if (estudiantes.length === 0) { cont.innerHTML = `<div class="empty-state"><i class="bi bi-people"></i>No hay estudiantes registrados en esta selección.</div>`; return; }
+    cont.innerHTML = `<div class="table-scroll"><table class="table-lector">
+      <thead><tr><th>Estudiante</th><th>Correo</th><th>Aula</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${estudiantes.map(e => {
+        const activo = usuarioActivo(e);
+        return `<tr>
+          <td>${e.nombre}</td><td>${e.email}</td><td>${etiquetaGrado(e.nivel, e.grado)} "${e.seccion}"</td>
+          <td><span class="chip" style="--chip-color:${activo ? "var(--forest)" : "var(--brick)"}">${activo ? "Activo" : "Retirado"}</span></td>
+          <td style="display:flex;gap:6px;">
+            <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="abrirReasignar('${e.id}','${e.nombre.replace(/'/g, "\\'")}')"><i class="bi bi-arrow-left-right"></i></button>
+            <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="toggleBajaEstudiante('${e.id}')"><i class="bi ${activo ? "bi-person-dash" : "bi-person-check"}"></i></button>
+          </td>
+        </tr>`;
+      }).join("")}</tbody></table></div>`;
+  }
+  fAulaRoster.addEventListener("change", renderRoster);
+
+  function abrirReasignar(usuarioId, nombre) {
+    document.getElementById("ra-usuario-id").value = usuarioId;
+    document.getElementById("ra-nombre-estudiante").textContent = nombre;
+    document.getElementById("ra-aula").innerHTML = misAulas.map(a => `<option value="${a.id}">${etiquetaAula(a)}</option>`).join("");
+    document.getElementById("modal-reasignar").classList.add("show");
+  }
+
+  document.getElementById("form-reasignar").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const aula = misAulas.find(a => a.id === document.getElementById("ra-aula").value);
+    reasignarAulaEstudiante(document.getElementById("ra-usuario-id").value, aula.nivel, aula.grado, aula.seccion);
+    document.getElementById("modal-reasignar").classList.remove("show");
+    renderRoster();
+    mostrarToast("Estudiante reasignado de aula.", "success");
+  });
+
+  function toggleBajaEstudiante(usuarioId) {
+    const activo = alternarBajaUsuario(usuarioId);
+    renderRoster();
+    mostrarToast(activo ? "Estudiante reactivado." : "Estudiante marcado como retirado.", activo ? "success" : "info");
+  }
+</script>
+</body>
+</html>

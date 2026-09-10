@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evaluaciones de comprensión — LectorIEP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-content">
+
+      <div class="page-header">
+        <span class="page-eyebrow-tag"><i class="bi bi-patch-check"></i> Comprensión lectora</span>
+        <h1 class="page-title">Evaluaciones por libro</h1>
+        <p class="page-subtitle">Responde el cuestionario de un libro que ya leíste. Tu resultado se clasifica según los niveles de logro del Currículo Nacional (MINEDU): Inicio, Proceso, Logro Esperado y Logro Destacado.</p>
+      </div>
+
+      <div id="panel-gestion-quiz"></div>
+
+      <div class="grid-cards grid-cols-3" id="grilla-quizzes" style="margin-bottom:24px;"></div>
+
+      <div class="card-lector">
+        <div class="section-title"><span>Mis resultados</span></div>
+        <div id="tabla-resultados"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast-stack" class="toast-stack"></div>
+
+<div class="modal-backdrop-lector" id="modal-quiz">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-box-title">
+      <h3 id="quiz-titulo" style="margin:0;">Evaluación</h3>
+      <button class="modal-close-btn" onclick="cerrarQuiz()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div id="quiz-cuerpo"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop-lector" id="modal-gestion-quiz">
+  <div class="modal-box" style="max-width:640px;">
+    <div class="modal-box-title">
+      <h3 id="gq-titulo-modal" style="margin:0;">Nueva evaluación</h3>
+      <button class="modal-close-btn" onclick="document.getElementById('modal-gestion-quiz').classList.remove('show')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <form id="form-gestion-quiz">
+      <input type="hidden" id="gq-id">
+      <div class="form-group-lector"><label class="form-label-lector">Libro</label><select class="form-select-lector" id="gq-libro" required></select></div>
+      <div class="form-group-lector"><label class="form-label-lector">Título de la evaluación</label><input class="form-control-lector" id="gq-titulo" required></div>
+      <div id="gq-preguntas"></div>
+      <button type="button" class="btn-lector btn-lector-outline btn-lector-sm" style="width:100%;margin-bottom:14px;" onclick="agregarPreguntaUI()"><i class="bi bi-plus-lg"></i> Agregar pregunta</button>
+      <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-save"></i> Guardar evaluación</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloud.js"></script>
+<script src="../js/filedb.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  initDatabase();
+  const usuario = renderShell("evaluaciones.html");
+  const puedeGestionar = ["admin", "docente"].includes(usuario.rol);
+
+  const libros = dbGet("libros").filter(libroActivo);
+
+  function renderGrilla() {
+    const quizzes = dbGet("quizzes");
+    const contGrilla = document.getElementById("grilla-quizzes");
+    contGrilla.innerHTML = quizzes.map(q => {
+      const libro = getBookById(q.libroId);
+      if (!libro) return "";
+      const yaRendido = dbGet("resultadosQuiz").some(r => r.usuarioId === usuario.id && r.quizId === q.id);
+      return `<div class="card-lector bar-left ${yaRendido ? "bar-forest" : "bar-amber"}">
+        <div style="font-family:var(--font-display);font-size:16px;margin-bottom:4px;">${libro.titulo}</div>
+        <div class="text-muted-soft" style="font-size:12.5px;margin-bottom:12px;">${q.preguntas.length} preguntas · ${libro.autor}</div>
+        <button class="btn-lector ${yaRendido ? "btn-lector-outline" : "btn-lector-amber"} btn-lector-sm" style="width:100%;" onclick="abrirQuiz('${q.id}')">
+          <i class="bi ${yaRendido ? "bi-arrow-repeat" : "bi-pencil-square"}"></i> ${yaRendido ? "Volver a rendir" : "Rendir evaluación"}
+        </button>
+      </div>`;
+    }).join("");
+  }
+  renderGrilla();
+
+  let quizActivo = null;
+  let respuestasActuales = [];
+
+  function abrirQuiz(quizId) {
+    quizActivo = dbGet("quizzes").find(q => q.id === quizId);
+    respuestasActuales = new Array(quizActivo.preguntas.length).fill(null);
+    document.getElementById("quiz-titulo").textContent = quizActivo.titulo;
+    renderQuizCuerpo();
+    document.getElementById("modal-quiz").classList.add("show");
+  }
+  function cerrarQuiz() { document.getElementById("modal-quiz").classList.remove("show"); }
+
+  function renderQuizCuerpo() {
+    const cont = document.getElementById("quiz-cuerpo");
+    cont.innerHTML = quizActivo.preguntas.map((p, i) => `
+      <div style="margin-bottom:18px;">
+        <p style="font-weight:600;font-size:14px;margin-bottom:8px;">${i + 1}. ${p.pregunta}</p>
+        ${p.opciones.map((op, j) => `<div class="quiz-option" data-preg="${i}" data-op="${j}" onclick="seleccionar(${i},${j})">${op}</div>`).join("")}
+      </div>
+    `).join("") + `<button class="btn-lector btn-lector-primary" style="width:100%;" id="btn-enviar-quiz" onclick="enviarQuiz()"><i class="bi bi-send-check"></i> Enviar respuestas</button>`;
+  }
+
+  function seleccionar(pregIdx, opIdx) {
+    respuestasActuales[pregIdx] = opIdx;
+    document.querySelectorAll(`.quiz-option[data-preg="${pregIdx}"]`).forEach(el => el.classList.remove("selected"));
+    document.querySelector(`.quiz-option[data-preg="${pregIdx}"][data-op="${opIdx}"]`).classList.add("selected");
+  }
+
+  function enviarQuiz() {
+    if (respuestasActuales.includes(null)) { mostrarToast("Responde todas las preguntas antes de enviar.", "warning"); return; }
+    const resultado = calificarQuiz(quizActivo, respuestasActuales);
+    guardarResultadoQuiz({ usuarioId: usuario.id, quizId: quizActivo.id, puntaje: resultado.puntaje, nivel: resultado.nivel });
+
+    quizActivo.preguntas.forEach((p, i) => {
+      document.querySelectorAll(`.quiz-option[data-preg="${i}"]`).forEach(el => el.style.pointerEvents = "none");
+      document.querySelector(`.quiz-option[data-preg="${i}"][data-op="${p.correcta}"]`).classList.add("correct");
+      if (respuestasActuales[i] !== p.correcta) document.querySelector(`.quiz-option[data-preg="${i}"][data-op="${respuestasActuales[i]}"]`).classList.add("incorrect");
+    });
+
+    const nivel = getNivelMinedu(resultado.nivel);
+    document.getElementById("btn-enviar-quiz").outerHTML = `
+      <div style="text-align:center;padding:14px;border-radius:10px;background:rgba(27,58,92,0.05);margin-top:8px;">
+        <div style="font-family:var(--font-display);font-size:22px;">${resultado.correctas}/${resultado.total} correctas — ${resultado.puntaje}%</div>
+        <span class="chip" style="--chip-color:${nivel.color};margin-top:6px;">${nivel.nombre}</span>
+      </div>`;
+    renderResultados();
+    renderGrilla();
+    mostrarToast(`Evaluación calificada: ${nivel.nombre}`, "info");
+  }
+
+  function renderResultados() {
+    const resultados = dbGet("resultadosQuiz").filter(r => r.usuarioId === usuario.id).sort((a, b) => b.fecha.localeCompare(a.fecha));
+    const cont = document.getElementById("tabla-resultados");
+    if (resultados.length === 0) { cont.innerHTML = `<div class="empty-state"><i class="bi bi-clipboard-x"></i>Aún no rindes evaluaciones.</div>`; return; }
+    cont.innerHTML = `<div class="table-scroll"><table class="table-lector">
+      <thead><tr><th>Libro</th><th>Fecha</th><th>Puntaje</th><th>Nivel alcanzado</th></tr></thead>
+      <tbody>${resultados.map(r => {
+        const quiz = dbGet("quizzes").find(q => q.id === r.quizId);
+        const libro = quiz ? getBookById(quiz.libroId) : null;
+        return `<tr><td>${libro ? libro.titulo : "(evaluación eliminada)"}</td><td>${formatoFecha(r.fecha)}</td><td>${r.puntaje}%</td><td>${chipNivel(r.nivel)}</td></tr>`;
+      }).join("")}</tbody></table></div>`;
+  }
+  renderResultados();
+
+  /* ---------------- Gestión del banco de evaluaciones (admin/docente) ---------------- */
+  if (puedeGestionar) {
+    const gqLibro = document.getElementById("gq-libro");
+    gqLibro.innerHTML = libros.map(b => `<option value="${b.id}">${b.titulo}</option>`).join("");
+
+    function renderPanelGestion() {
+      const quizzes = dbGet("quizzes");
+      document.getElementById("panel-gestion-quiz").innerHTML = `
+        <div class="card-lector" style="margin-bottom:20px;">
+          <div class="section-title">
+            <span>Banco de evaluaciones</span>
+            <button class="btn-lector btn-lector-amber btn-lector-sm" onclick="abrirNuevoQuiz()"><i class="bi bi-plus-lg"></i> Nueva evaluación</button>
+          </div>
+          ${quizzes.length === 0 ? `<div class="empty-state"><i class="bi bi-clipboard-x"></i>Aún no hay evaluaciones creadas.</div>` : `<div class="table-scroll"><table class="table-lector">
+            <thead><tr><th>Título</th><th>Libro</th><th>Preguntas</th><th></th></tr></thead>
+            <tbody>${quizzes.map(q => {
+              const libro = getBookById(q.libroId);
+              return `<tr><td>${q.titulo}</td><td>${libro ? libro.titulo : "—"}</td><td>${q.preguntas.length}</td>
+                <td style="display:flex;gap:6px;">
+                  <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="abrirEditarQuiz('${q.id}')"><i class="bi bi-pencil"></i></button>
+                  <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="eliminarQuizUI('${q.id}')"><i class="bi bi-trash"></i></button>
+                </td></tr>`;
+            }).join("")}</tbody></table></div>`}
+        </div>`;
+    }
+    renderPanelGestion();
+
+    function bloquePregunta(idx, pregunta) {
+      pregunta = pregunta || { pregunta: "", opciones: ["", "", "", ""], correcta: 0 };
+      return `<div class="card-lector bar-left" style="margin-bottom:12px;" data-pregunta-idx="${idx}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <strong style="font-size:13px;">Pregunta ${idx + 1}</strong>
+          <button type="button" class="btn-lector btn-lector-outline btn-lector-sm" onclick="quitarPreguntaUI(${idx})"><i class="bi bi-trash"></i></button>
+        </div>
+        <div class="form-group-lector"><input class="form-control-lector gq-pregunta-texto" placeholder="Texto de la pregunta" value="${pregunta.pregunta.replace(/"/g, "&quot;")}" required></div>
+        ${[0, 1, 2, 3].map(j => `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <input type="radio" name="correcta-${idx}" value="${j}" ${pregunta.correcta === j ? "checked" : ""} class="gq-correcta">
+          <input class="form-control-lector gq-opcion-texto" placeholder="Opción ${j + 1}" value="${(pregunta.opciones[j] || "").replace(/"/g, "&quot;")}" required>
+        </div>`).join("")}
+      </div>`;
+    }
+
+    function agregarPreguntaUI(pregunta) {
+      const cont = document.getElementById("gq-preguntas");
+      const idx = cont.children.length;
+      cont.insertAdjacentHTML("beforeend", bloquePregunta(idx, pregunta));
+    }
+
+    function quitarPreguntaUI(idx) {
+      const cont = document.getElementById("gq-preguntas");
+      if (cont.children.length <= 1) { mostrarToast("La evaluación necesita al menos una pregunta.", "warning"); return; }
+      cont.removeChild(cont.children[idx]);
+      Array.from(cont.children).forEach((el, i) => {
+        el.dataset.preguntaIdx = i;
+        el.querySelector("strong").textContent = `Pregunta ${i + 1}`;
+        el.querySelectorAll(".gq-correcta").forEach(r => r.name = `correcta-${i}`);
+        const btn = el.querySelector("button");
+        btn.setAttribute("onclick", `quitarPreguntaUI(${i})`);
+      });
+    }
+
+    function abrirNuevoQuiz() {
+      document.getElementById("gq-titulo-modal").textContent = "Nueva evaluación";
+      document.getElementById("gq-id").value = "";
+      document.getElementById("form-gestion-quiz").reset();
+      document.getElementById("gq-preguntas").innerHTML = "";
+      agregarPreguntaUI();
+      document.getElementById("modal-gestion-quiz").classList.add("show");
+    }
+
+    function abrirEditarQuiz(id) {
+      const quiz = dbGet("quizzes").find(q => q.id === id);
+      document.getElementById("gq-titulo-modal").textContent = "Editar evaluación";
+      document.getElementById("gq-id").value = quiz.id;
+      document.getElementById("gq-libro").value = quiz.libroId;
+      document.getElementById("gq-titulo").value = quiz.titulo;
+      document.getElementById("gq-preguntas").innerHTML = "";
+      quiz.preguntas.forEach(p => agregarPreguntaUI(p));
+      document.getElementById("modal-gestion-quiz").classList.add("show");
+    }
+
+    function eliminarQuizUI(id) {
+      if (!confirm("¿Eliminar esta evaluación? También se borrarán los resultados asociados.")) return;
+      eliminarQuiz(id);
+      renderPanelGestion();
+      renderGrilla();
+      renderResultados();
+      mostrarToast("Evaluación eliminada.", "info");
+    }
+
+    document.getElementById("form-gestion-quiz").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const bloques = Array.from(document.getElementById("gq-preguntas").children);
+      const preguntas = bloques.map(b => ({
+        pregunta: b.querySelector(".gq-pregunta-texto").value,
+        opciones: Array.from(b.querySelectorAll(".gq-opcion-texto")).map(i => i.value),
+        correcta: Number(b.querySelector(".gq-correcta:checked").value)
+      }));
+      const datos = { libroId: gqLibro.value, titulo: document.getElementById("gq-titulo").value, preguntas };
+      const id = document.getElementById("gq-id").value;
+      if (id) actualizarQuiz(id, datos); else crearQuiz(datos);
+      document.getElementById("modal-gestion-quiz").classList.remove("show");
+      renderPanelGestion();
+      renderGrilla();
+      mostrarToast(id ? "Evaluación actualizada." : "Evaluación creada.", "success");
+    });
+
+    window.agregarPreguntaUI = agregarPreguntaUI;
+    window.quitarPreguntaUI = quitarPreguntaUI;
+    window.abrirNuevoQuiz = abrirNuevoQuiz;
+    window.abrirEditarQuiz = abrirEditarQuiz;
+    window.eliminarQuizUI = eliminarQuizUI;
+  }
+</script>
+</body>
+</html>

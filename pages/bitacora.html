@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bitácora de lectura — LectorIEP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-content">
+
+      <div class="page-header">
+        <span class="page-eyebrow-tag"><i class="bi bi-journal-text"></i> Bitácora de lectura</span>
+        <h1 class="page-title">Registra tu lectura de hoy</h1>
+        <p class="page-subtitle">Cada registro suma puntos a tu nivel lector, mantiene tu racha activa y puede desbloquear nuevas insignias.</p>
+      </div>
+
+      <div class="grid-cards" style="grid-template-columns:0.9fr 1.4fr;align-items:start;">
+        <div class="card-lector">
+          <div class="section-title"><span>Nuevo registro</span></div>
+          <form id="form-bitacora">
+            <div class="form-group-lector">
+              <label class="form-label-lector">Libro leído</label>
+              <select class="form-select-lector" id="input-libro" required></select>
+            </div>
+            <div class="grid-cards grid-cols-2" style="gap:12px;">
+              <div class="form-group-lector">
+                <label class="form-label-lector">Páginas leídas</label>
+                <input class="form-control-lector" type="number" min="1" id="input-paginas" required>
+              </div>
+              <div class="form-group-lector">
+                <label class="form-label-lector">Minutos dedicados</label>
+                <input class="form-control-lector" type="number" min="1" id="input-minutos" required>
+              </div>
+            </div>
+            <div class="form-group-lector">
+              <label class="form-label-lector">¿Qué tanto te gustó?</label>
+              <select class="form-select-lector" id="input-autoeval">
+                <option value="5">⭐⭐⭐⭐⭐ Me encantó</option>
+                <option value="4">⭐⭐⭐⭐ Me gustó</option>
+                <option value="3" selected>⭐⭐⭐ Está bien</option>
+                <option value="2">⭐⭐ No tanto</option>
+                <option value="1">⭐ No me gustó</option>
+              </select>
+            </div>
+            <div class="form-group-lector">
+              <label class="form-label-lector">Comentario o reseña breve</label>
+              <textarea class="form-control-lector" id="input-comentario" rows="3" placeholder="¿Qué aprendiste o qué parte te gustó más?"></textarea>
+            </div>
+            <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-check2-circle"></i> Guardar registro</button>
+          </form>
+        </div>
+
+        <div class="card-lector">
+          <div class="section-title">
+            <span>Historial completo</span>
+            <select class="form-select-lector" id="filtro-libro" style="max-width:220px;">
+              <option value="">Todos los libros</option>
+            </select>
+          </div>
+          <div id="historial"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast-stack" class="toast-stack"></div>
+<div class="modal-backdrop-lector" id="modal-logro">
+  <div class="modal-box" style="text-align:center;">
+    <div style="width:64px;height:64px;border-radius:50%;background:var(--amber);color:#2A1A08;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 14px;">
+      <i class="bi bi-trophy-fill"></i>
+    </div>
+    <h3 style="margin-bottom:6px;">¡Registro guardado!</h3>
+    <p class="text-muted-soft" id="modal-logro-texto"></p>
+    <div id="modal-logro-insignias" style="display:flex;gap:10px;justify-content:center;margin:14px 0;"></div>
+    <button class="btn-lector btn-lector-primary" style="width:100%;" onclick="document.getElementById('modal-logro').classList.remove('show')">Continuar leyendo</button>
+  </div>
+</div>
+
+<div class="modal-backdrop-lector" id="modal-editar-registro">
+  <div class="modal-box">
+    <div class="modal-box-title"><h3 style="margin:0;">Editar registro</h3><button class="modal-close-btn" onclick="document.getElementById('modal-editar-registro').classList.remove('show')"><i class="bi bi-x-lg"></i></button></div>
+    <form id="form-editar-registro">
+      <input type="hidden" id="er-id">
+      <div class="form-group-lector"><label class="form-label-lector">Libro leído</label><select class="form-select-lector" id="er-libro"></select></div>
+      <div class="grid-cards grid-cols-2" style="gap:12px;">
+        <div class="form-group-lector"><label class="form-label-lector">Páginas leídas</label><input class="form-control-lector" type="number" min="1" id="er-paginas" required></div>
+        <div class="form-group-lector"><label class="form-label-lector">Minutos dedicados</label><input class="form-control-lector" type="number" min="1" id="er-minutos" required></div>
+      </div>
+      <div class="form-group-lector"><label class="form-label-lector">Valoración</label>
+        <select class="form-select-lector" id="er-autoeval">
+          <option value="5">⭐⭐⭐⭐⭐ Me encantó</option><option value="4">⭐⭐⭐⭐ Me gustó</option>
+          <option value="3">⭐⭐⭐ Está bien</option><option value="2">⭐⭐ No tanto</option><option value="1">⭐ No me gustó</option>
+        </select>
+      </div>
+      <div class="form-group-lector"><label class="form-label-lector">Comentario</label><textarea class="form-control-lector" id="er-comentario" rows="2"></textarea></div>
+      <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-save"></i> Guardar cambios</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloud.js"></script>
+<script src="../js/filedb.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  initDatabase();
+  const usuario = renderShell("bitacora.html");
+
+  const libros = dbGet("libros");
+  const selectLibro = document.getElementById("input-libro");
+  const filtroLibro = document.getElementById("filtro-libro");
+  libros.forEach(b => {
+    selectLibro.innerHTML += `<option value="${b.id}">${b.titulo}</option>`;
+    filtroLibro.innerHTML += `<option value="${b.id}">${b.titulo}</option>`;
+  });
+
+  function renderHistorial(filtroId) {
+    let registros = dbGet("bitacora").filter(l => l.usuarioId === usuario.id);
+    if (filtroId) registros = registros.filter(l => l.libroId === filtroId);
+    registros.sort((a, b) => b.fecha.localeCompare(a.fecha));
+    const cont = document.getElementById("historial");
+    if (registros.length === 0) {
+      cont.innerHTML = `<div class="empty-state"><i class="bi bi-journal-x"></i>No hay registros para este filtro todavía.</div>`;
+      return;
+    }
+    cont.innerHTML = `<div class="table-scroll"><table class="table-lector">
+      <thead><tr><th>Fecha</th><th>Libro</th><th>Páginas</th><th>Minutos</th><th>Valoración</th><th>Comentario</th><th></th></tr></thead>
+      <tbody>${registros.map(l => {
+        const libro = getBookById(l.libroId);
+        return `<tr><td>${formatoFecha(l.fecha)}</td><td>${libro.titulo}</td><td>${l.paginas}</td><td>${l.minutos}</td><td>${"⭐".repeat(l.autoevaluacion)}</td><td style="max-width:200px;">${l.comentario || "—"}</td>
+          <td style="display:flex;gap:6px;">
+            <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="editarRegistro('${l.id}')"><i class="bi bi-pencil"></i></button>
+            <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="borrarRegistro('${l.id}')"><i class="bi bi-trash"></i></button>
+          </td></tr>`;
+      }).join("")}</tbody></table></div>`;
+  }
+  renderHistorial("");
+  filtroLibro.addEventListener("change", () => renderHistorial(filtroLibro.value));
+
+  document.getElementById("form-bitacora").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const resultado = registrarLectura({
+      usuarioId: usuario.id,
+      libroId: selectLibro.value,
+      paginas: document.getElementById("input-paginas").value,
+      minutos: document.getElementById("input-minutos").value,
+      autoevaluacion: document.getElementById("input-autoeval").value,
+      comentario: document.getElementById("input-comentario").value
+    });
+
+    document.getElementById("modal-logro-texto").textContent = `Ganaste ${resultado.puntosGanados} puntos. Tu racha actual es de ${resultado.racha} día(s).`;
+    const contIns = document.getElementById("modal-logro-insignias");
+    contIns.innerHTML = resultado.nuevasInsignias.map(id => {
+      const b = getBadgeById(id);
+      return `<div class="badge-earned"><div class="badge-icon" style="background:${b.color}"><i class="bi ${b.icono}"></i></div><div class="badge-name">${b.nombre}</div></div>`;
+    }).join("");
+    document.getElementById("modal-logro").classList.add("show");
+
+    e.target.reset();
+    renderHistorial(filtroLibro.value);
+    mostrarToast(`+${resultado.puntosGanados} puntos registrados`, "success");
+  });
+
+  const erLibro = document.getElementById("er-libro");
+  libros.forEach(b => erLibro.innerHTML += `<option value="${b.id}">${b.titulo}</option>`);
+
+  function editarRegistro(id) {
+    const registro = dbGet("bitacora").find(r => r.id === id);
+    if (!registro) return;
+    document.getElementById("er-id").value = registro.id;
+    erLibro.value = registro.libroId;
+    document.getElementById("er-paginas").value = registro.paginas;
+    document.getElementById("er-minutos").value = registro.minutos;
+    document.getElementById("er-autoeval").value = registro.autoevaluacion;
+    document.getElementById("er-comentario").value = registro.comentario || "";
+    document.getElementById("modal-editar-registro").classList.add("show");
+  }
+
+  document.getElementById("form-editar-registro").addEventListener("submit", (e) => {
+    e.preventDefault();
+    editarRegistroLectura(document.getElementById("er-id").value, {
+      libroId: erLibro.value,
+      paginas: document.getElementById("er-paginas").value,
+      minutos: document.getElementById("er-minutos").value,
+      autoevaluacion: document.getElementById("er-autoeval").value,
+      comentario: document.getElementById("er-comentario").value
+    });
+    document.getElementById("modal-editar-registro").classList.remove("show");
+    renderHistorial(filtroLibro.value);
+    mostrarToast("Registro actualizado.", "success");
+  });
+
+  function borrarRegistro(id) {
+    if (!confirm("¿Eliminar este registro de lectura? Se restarán los puntos que otorgó.")) return;
+    eliminarRegistroLectura(id);
+    renderHistorial(filtroLibro.value);
+    mostrarToast("Registro eliminado.", "info");
+  }
+</script>
+</body>
+</html>

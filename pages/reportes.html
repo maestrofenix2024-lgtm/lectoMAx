@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reportes — LectorIEP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-content">
+
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;">
+        <div>
+          <span class="page-eyebrow-tag"><i class="bi bi-bar-chart-line"></i> Reportes</span>
+          <h1 class="page-title">Estadísticas de lectura</h1>
+          <p class="page-subtitle">Consolidado de bitácoras de lectura por aula y periodo, listo para exportar.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-lector btn-lector-outline" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir / PDF</button>
+          <button class="btn-lector btn-lector-outline" onclick="exportarCSV()"><i class="bi bi-filetype-csv"></i> CSV</button>
+          <button class="btn-lector btn-lector-amber" onclick="exportarExcel()"><i class="bi bi-file-earmark-spreadsheet"></i> Excel</button>
+        </div>
+      </div>
+
+      <div class="card-lector no-print" style="margin-bottom:20px;">
+        <div class="grid-cards grid-cols-3">
+          <div>
+            <label class="form-label-lector">Aula</label>
+            <select class="form-select-lector" id="f-aula-rep"><option value="">Todas las aulas</option></select>
+          </div>
+          <div>
+            <label class="form-label-lector">Desde</label>
+            <input type="date" class="form-control-lector" id="f-desde">
+          </div>
+          <div>
+            <label class="form-label-lector">Hasta</label>
+            <input type="date" class="form-control-lector" id="f-hasta">
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-cards grid-cols-4" style="margin-bottom:20px;">
+        <div class="card-lector bar-left stat-card"><span class="stat-label">Registros de lectura</span><span class="stat-value" id="r-registros">0</span></div>
+        <div class="card-lector bar-amber stat-card"><span class="stat-label">Páginas totales</span><span class="stat-value" id="r-paginas">0</span></div>
+        <div class="card-lector bar-forest stat-card"><span class="stat-label">Minutos totales</span><span class="stat-value" id="r-minutos">0</span></div>
+        <div class="card-lector bar-gold stat-card"><span class="stat-label">Autoevaluación promedio</span><span class="stat-value" id="r-autoeval">—</span></div>
+      </div>
+
+      <div class="card-lector" style="margin-bottom:20px;">
+        <div class="section-title"><span>Comprensión lectora por nivel MINEDU (evaluaciones en el periodo)</span></div>
+        <canvas id="chart-reportes" height="90"></canvas>
+      </div>
+
+      <div class="card-lector">
+        <div class="section-title"><span>Detalle de registros</span></div>
+        <div id="tabla-reportes"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloud.js"></script>
+<script src="../js/filedb.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  initDatabase();
+  const usuario = renderShell("reportes.html");
+
+  const aulas = dbGet("aulas");
+  const selAula = document.getElementById("f-aula-rep");
+  aulas.forEach(a => selAula.innerHTML += `<option value="${a.id}">${etiquetaAula(a)}</option>`);
+
+  let chartRef = null;
+
+  function registrosFiltrados() {
+    let registros = dbGet("bitacora").map(r => ({ ...r, usuario: getUserById(r.usuarioId), libro: getBookById(r.libroId) }));
+
+    if (usuario.rol === "docente") {
+      const misAulas = aulas.filter(a => normalizarDocenteIds(a.docenteIds).includes(usuario.id)).map(a => a.id);
+      registros = registros.filter(r => r.usuario && misAulas.some(id => { const a = aulas.find(x => x.id === id); return a.nivel === r.usuario.nivel && a.grado === r.usuario.grado && a.seccion === r.usuario.seccion; }));
+    }
+    if (usuario.rol === "padre") {
+      const hijosIds = new Set(usuario.hijosIds || []);
+      registros = registros.filter(r => hijosIds.has(r.usuarioId));
+    }
+    if (usuario.rol === "estudiante") {
+      registros = registros.filter(r => r.usuarioId === usuario.id);
+    }
+
+    const aulaId = document.getElementById("f-aula-rep").value;
+    if (aulaId) {
+      const a = aulas.find(x => x.id === aulaId);
+      registros = registros.filter(r => r.usuario && r.usuario.nivel === a.nivel && r.usuario.grado === a.grado && r.usuario.seccion === a.seccion);
+    }
+    const desde = document.getElementById("f-desde").value;
+    const hasta = document.getElementById("f-hasta").value;
+    if (desde) registros = registros.filter(r => r.fecha >= desde);
+    if (hasta) registros = registros.filter(r => r.fecha <= hasta);
+
+    return registros.sort((a, b) => b.fecha.localeCompare(a.fecha));
+  }
+
+  function renderReportes() {
+    const registros = registrosFiltrados();
+    document.getElementById("r-registros").textContent = registros.length;
+    document.getElementById("r-paginas").textContent = registros.reduce((a, r) => a + r.paginas, 0);
+    document.getElementById("r-minutos").textContent = registros.reduce((a, r) => a + r.minutos, 0);
+    document.getElementById("r-autoeval").textContent = registros.length ? (registros.reduce((a, r) => a + r.autoevaluacion, 0) / registros.length).toFixed(1) : "—";
+
+    const cont = document.getElementById("tabla-reportes");
+    if (registros.length === 0) { cont.innerHTML = `<div class="empty-state"><i class="bi bi-clipboard-data"></i>No hay registros para este filtro.</div>`; }
+    else {
+      cont.innerHTML = `<div class="table-scroll"><table class="table-lector">
+        <thead><tr><th>Fecha</th><th>Estudiante</th><th>Aula</th><th>Libro</th><th>Páginas</th><th>Minutos</th><th>Valoración</th></tr></thead>
+        <tbody>${registros.map(r => `<tr>
+          <td>${formatoFecha(r.fecha)}</td><td>${r.usuario ? r.usuario.nombre : "—"}</td>
+          <td>${r.usuario ? `${etiquetaGrado(r.usuario.nivel, r.usuario.grado)} "${r.usuario.seccion}"` : "—"}</td>
+          <td>${r.libro ? r.libro.titulo : "—"}</td><td>${r.paginas}</td><td>${r.minutos}</td><td>${"⭐".repeat(r.autoevaluacion)}</td>
+        </tr>`).join("")}</tbody></table></div>`;
+    }
+
+    // Chart de niveles en el periodo (usa fecha de evaluación, filtra por aula/fecha simplificado)
+    let resultados = dbGet("resultadosQuiz").map(r => ({ ...r, usuario: getUserById(r.usuarioId) }));
+    const aulaId = document.getElementById("f-aula-rep").value;
+    if (aulaId) { const a = aulas.find(x => x.id === aulaId); resultados = resultados.filter(r => r.usuario && r.usuario.nivel === a.nivel && r.usuario.grado === a.grado && r.usuario.seccion === a.seccion); }
+    const conteo = NIVELES_MINEDU.map(n => resultados.filter(r => r.nivel === n.id).length);
+    if (chartRef) chartRef.destroy();
+    chartRef = new Chart(document.getElementById("chart-reportes"), {
+      type: "bar",
+      data: { labels: NIVELES_MINEDU.map(n => n.nombre), datasets: [{ data: conteo, backgroundColor: NIVELES_MINEDU.map(n => n.color), borderRadius: 6, maxBarThickness: 46 }] },
+      options: { indexAxis: "y", plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+  }
+
+  ["f-aula-rep", "f-desde", "f-hasta"].forEach(id => document.getElementById(id).addEventListener("input", renderReportes));
+  renderReportes();
+
+  function exportarCSV() {
+    const registros = registrosFiltrados();
+    const filas = [["Fecha", "Estudiante", "Nivel", "Grado", "Sección", "Libro", "Páginas", "Minutos", "Autoevaluación"]];
+    registros.forEach(r => filas.push([r.fecha, r.usuario ? r.usuario.nombre : "", r.usuario ? getNivelEducativo(r.usuario.nivel).nombre : "", r.usuario ? r.usuario.grado : "", r.usuario ? r.usuario.seccion : "", r.libro ? r.libro.titulo : "", r.paginas, r.minutos, r.autoevaluacion]));
+    const csv = filas.map(f => f.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `reporte-lectura-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    mostrarToast("Reporte CSV descargado.", "success");
+  }
+
+  function exportarExcel() {
+    const registros = registrosFiltrados();
+    const filas = registros.map(r => ({
+      Fecha: r.fecha, Estudiante: r.usuario ? r.usuario.nombre : "", Nivel: r.usuario ? getNivelEducativo(r.usuario.nivel).nombre : "", Grado: r.usuario ? r.usuario.grado : "",
+      Sección: r.usuario ? r.usuario.seccion : "", Libro: r.libro ? r.libro.titulo : "",
+      Páginas: r.paginas, Minutos: r.minutos, Autoevaluación: r.autoevaluacion
+    }));
+    const hoja = XLSX.utils.json_to_sheet(filas);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, "Lectura");
+    XLSX.writeFile(libro, `reporte-lectura-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    mostrarToast("Reporte Excel descargado.", "success");
+  }
+</script>
+</body>
+</html>

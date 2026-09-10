@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel CIST — LectorIEP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-content">
+
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;">
+        <div>
+          <span class="page-eyebrow-tag"><i class="bi bi-mortarboard"></i> Coordinación CIST</span>
+          <h1 class="page-title">Panorama institucional del plan lector</h1>
+          <p class="page-subtitle">IEP N.° 20150 "Mariscal Benavides" — vista consolidada de todas las aulas, biblioteca y participación docente.</p>
+        </div>
+        <a href="configuracion.html" class="btn-lector btn-lector-amber"><i class="bi bi-gear"></i> Ir a Configuración</a>
+      </div>
+
+      <div class="grid-cards grid-cols-4" style="margin-bottom:20px;">
+        <div class="card-lector bar-left stat-card"><span class="stat-label">Estudiantes activos</span><span class="stat-value" id="k-total-est">0</span></div>
+        <div class="card-lector bar-amber stat-card"><span class="stat-label">Libros en catálogo</span><span class="stat-value" id="k-total-libros">0</span></div>
+        <div class="card-lector bar-forest stat-card"><span class="stat-label">Préstamos vigentes</span><span class="stat-value" id="k-total-prestamos">0</span></div>
+        <div class="card-lector bar-brick stat-card"><span class="stat-label">Devoluciones atrasadas</span><span class="stat-value" id="k-total-atrasos">0</span></div>
+      </div>
+
+      <div class="grid-cards" style="grid-template-columns:1.3fr 1fr;margin-bottom:20px;align-items:start;">
+        <div class="card-lector">
+          <div class="section-title"><span>Distribución por nivel de logro (MINEDU)</span></div>
+          <canvas id="chart-niveles" height="130"></canvas>
+        </div>
+        <div class="card-lector">
+          <div class="section-title"><span>Libros leídos por grado</span></div>
+          <canvas id="chart-grados" height="150"></canvas>
+        </div>
+      </div>
+
+      <div class="card-lector" style="margin-bottom:20px;">
+        <div class="section-title"><span><i class="bi bi-fire"></i> Libros más leídos</span></div>
+        <div id="tabla-top-libros"></div>
+      </div>
+
+      <div id="panel-actividades" class="card-lector"></div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast-stack" class="toast-stack"></div>
+
+<div class="modal-backdrop-lector" id="modal-actividad">
+  <div class="modal-box">
+    <div class="modal-box-title"><h3 style="margin:0;" id="ac-titulo-modal">Nueva actividad</h3><button class="modal-close-btn" onclick="document.getElementById('modal-actividad').classList.remove('show')"><i class="bi bi-x-lg"></i></button></div>
+    <form id="form-actividad">
+      <input type="hidden" id="ac-id">
+      <div class="form-group-lector"><label class="form-label-lector">Título</label><input class="form-control-lector" id="ac-titulo" required></div>
+      <div class="grid-cards grid-cols-2">
+        <div class="form-group-lector"><label class="form-label-lector">Fecha</label><input type="date" class="form-control-lector" id="ac-fecha" required></div>
+        <div class="form-group-lector"><label class="form-label-lector">Tipo</label>
+          <select class="form-select-lector" id="ac-tipo"><option value="evento">Evento</option><option value="concurso">Concurso</option><option value="cierre">Cierre</option></select>
+        </div>
+      </div>
+      <div class="form-group-lector"><label class="form-label-lector">Descripción</label><textarea class="form-control-lector" id="ac-descripcion" rows="2"></textarea></div>
+      <button type="submit" class="btn-lector btn-lector-amber" style="width:100%;"><i class="bi bi-save"></i> Guardar</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloud.js"></script>
+<script src="../js/filedb.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  initDatabase();
+  actualizarEstadosPrestamos();
+  const usuario = renderShell("admin.html");
+
+  const estudiantes = dbGet("usuarios").filter(u => u.rol === "estudiante" && usuarioActivo(u));
+  const libros = dbGet("libros");
+  const prestamos = dbGet("prestamos");
+  const resultadosQuiz = dbGet("resultadosQuiz");
+
+  document.getElementById("k-total-est").textContent = estudiantes.length;
+  document.getElementById("k-total-libros").textContent = libros.length;
+  document.getElementById("k-total-prestamos").textContent = prestamos.filter(p => p.estado !== "devuelto").length;
+  document.getElementById("k-total-atrasos").textContent = prestamos.filter(p => p.estado === "atrasado").length;
+
+  // Gráfico de niveles MINEDU (de resultados de evaluación)
+  const conteoNiveles = NIVELES_MINEDU.map(n => resultadosQuiz.filter(r => r.nivel === n.id).length);
+  new Chart(document.getElementById("chart-niveles"), {
+    type: "doughnut",
+    data: {
+      labels: NIVELES_MINEDU.map(n => n.nombre),
+      datasets: [{ data: conteoNiveles, backgroundColor: NIVELES_MINEDU.map(n => n.color), borderWidth: 0 }]
+    },
+    options: { plugins: { legend: { position: "bottom", labels: { font: { family: "Inter" }, boxWidth: 10, padding: 14 } } }, cutout: "62%" }
+  });
+
+  // Gráfico de libros leídos por grado (todos los niveles: Primaria y Secundaria)
+  const bitacora = dbGet("bitacora");
+  const combosGrado = NIVELES_EDUCATIVOS.flatMap(n => n.grados.map(g => ({ nivel: n.id, grado: String(g) })));
+  const librosPorGrado = combosGrado.map(c => {
+    const idsEst = new Set(estudiantes.filter(e => e.nivel === c.nivel && e.grado === c.grado).map(e => e.id));
+    return new Set(bitacora.filter(l => idsEst.has(l.usuarioId)).map(l => l.usuarioId + "-" + l.libroId)).size;
+  });
+  new Chart(document.getElementById("chart-grados"), {
+    type: "bar",
+    data: { labels: combosGrado.map(c => etiquetaGrado(c.nivel, c.grado)), datasets: [{ label: "Libros leídos", data: librosPorGrado, backgroundColor: combosGrado.map(c => c.nivel === "primaria" ? "#3E6B4F" : "#1B3A5C"), borderRadius: 6, maxBarThickness: 28 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { ticks: { font: { size: 10 } } } } }
+  });
+
+  const topLibros = librosMasLeidos(5);
+  document.getElementById("tabla-top-libros").innerHTML = topLibros.length === 0
+    ? `<div class="empty-state"><i class="bi bi-book"></i>Aún no hay lecturas registradas.</div>`
+    : `<div class="table-scroll"><table class="table-lector">
+        <thead><tr><th>#</th><th>Libro</th><th>Autor</th><th>Veces leído</th></tr></thead>
+        <tbody>${topLibros.map((t, i) => `<tr><td>${i + 1}</td><td>${t.libro.titulo}</td><td>${t.libro.autor}</td><td><strong>${t.veces}</strong></td></tr>`).join("")}</tbody>
+      </table></div>`;
+
+  if (libros.length === 0 && estudiantes.length === 0) {
+    document.querySelector(".page-subtitle").insertAdjacentHTML("afterend", `
+      <div class="card-lector bar-amber" style="margin-bottom:20px;">
+        <i class="bi bi-info-circle"></i> El sistema está recién instalado. Ve a <a href="configuracion.html"><strong>Configuración</strong></a> para registrar aulas, docentes, bibliotecario(a), estudiantes y padres de familia, y a <a href="biblioteca.html"><strong>Catálogo</strong></a> para cargar los libros de la biblioteca.
+      </div>`);
+  }
+
+  /* ---------------- Panel Actividades ---------------- */
+  function renderActividades() {
+    const actividades = dbGet("actividades").sort((a, b) => a.fecha.localeCompare(b.fecha));
+    const tipoColor = { evento: "var(--amber)", concurso: "var(--forest)", cierre: "var(--navy)" };
+    document.getElementById("panel-actividades").innerHTML = `
+      <div class="section-title">
+        <span>Calendario del plan de fomento lector</span>
+        <button class="btn-lector btn-lector-amber btn-lector-sm" onclick="abrirNuevaActividad()"><i class="bi bi-plus-lg"></i> Nueva actividad</button>
+      </div>
+      ${actividades.length === 0 ? `<div class="empty-state"><i class="bi bi-calendar-x"></i>Sin actividades programadas.</div>` : actividades.map(a => `<div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center;">
+        <div style="width:64px;text-align:center;flex-shrink:0;">
+          <div style="font-family:var(--font-display);font-size:20px;color:var(--navy-deep);">${a.fecha.slice(8, 10)}</div>
+          <div class="text-muted-soft" style="font-size:11px;text-transform:uppercase;">${["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"][Number(a.fecha.slice(5,7))-1]} ${a.fecha.slice(0,4)}</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:14px;">${a.titulo} <span class="chip" style="--chip-color:${tipoColor[a.tipo]};margin-left:6px;">${a.tipo}</span></div>
+          <div class="text-muted-soft" style="font-size:13px;">${a.descripcion}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="abrirEditarActividad('${a.id}')"><i class="bi bi-pencil"></i></button>
+          <button class="btn-lector btn-lector-outline btn-lector-sm" onclick="borrarActividad('${a.id}')"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>`).join("")}
+    `;
+  }
+  renderActividades();
+
+  function abrirNuevaActividad() {
+    document.getElementById("ac-titulo-modal").textContent = "Nueva actividad";
+    document.getElementById("form-actividad").reset();
+    document.getElementById("ac-id").value = "";
+    document.getElementById("ac-fecha").value = new Date().toISOString().slice(0, 10);
+    document.getElementById("modal-actividad").classList.add("show");
+  }
+
+  function abrirEditarActividad(id) {
+    const act = dbGet("actividades").find(a => a.id === id);
+    document.getElementById("ac-titulo-modal").textContent = "Editar actividad";
+    document.getElementById("ac-id").value = act.id;
+    document.getElementById("ac-titulo").value = act.titulo;
+    document.getElementById("ac-fecha").value = act.fecha;
+    document.getElementById("ac-tipo").value = act.tipo;
+    document.getElementById("ac-descripcion").value = act.descripcion || "";
+    document.getElementById("modal-actividad").classList.add("show");
+  }
+
+  document.getElementById("form-actividad").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const id = document.getElementById("ac-id").value;
+    const datos = {
+      titulo: document.getElementById("ac-titulo").value,
+      fecha: document.getElementById("ac-fecha").value,
+      tipo: document.getElementById("ac-tipo").value,
+      descripcion: document.getElementById("ac-descripcion").value
+    };
+    if (id) actualizarActividad(id, datos); else crearActividad(datos);
+    document.getElementById("modal-actividad").classList.remove("show");
+    renderActividades();
+    mostrarToast(id ? "Actividad actualizada." : "Actividad agregada al plan lector.", "success");
+  });
+
+  function borrarActividad(id) {
+    if (!confirm("¿Eliminar esta actividad del plan lector?")) return;
+    eliminarActividad(id);
+    renderActividades();
+    mostrarToast("Actividad eliminada.", "info");
+  }
+</script>
+</body>
+</html>

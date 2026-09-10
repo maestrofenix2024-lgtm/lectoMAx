@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LectorIEP — Sistema de Seguimiento de Lectura Escolar</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="cloud-loading-overlay" id="cloud-loading">
+  <div class="spinner"></div>
+  <p>Conectando con la base de datos...</p>
+</div>
+
+<div class="login-shell">
+  <div class="login-hero">
+    <div>
+      <div class="sidebar-brand" style="border:none;padding:0;margin-bottom:40px;">
+        <span class="brand-mark"><i class="bi bi-book"></i></span>
+        <div>
+          <div class="brand-title" style="font-size:19px;">LectorIEP</div>
+          <div class="brand-sub">IEP N.° 20150 "Mariscal Benavides" · UGEL 08 Cañete</div>
+        </div>
+      </div>
+      <h1>El seguimiento de lectura de todo el colegio, en un solo lugar.</h1>
+      <p>Bitácora de lectura, biblioteca y préstamos, evaluaciones de comprensión con niveles MINEDU, gamificación e insignias, y reportes para docentes, CIST y familias.</p>
+      <div class="hero-stats">
+        <div><strong id="hero-libros">—</strong><span>Libros en catálogo</span></div>
+        <div><strong id="hero-estudiantes">—</strong><span>Estudiantes activos</span></div>
+        <div><strong id="hero-aulas">—</strong><span>Aulas registradas</span></div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#8FA0A8;margin:0;">Proyecto institucional del rol de Coordinación de Innovación y Soporte Tecnológico (CIST).</p>
+  </div>
+
+  <div class="login-panel">
+    <div class="login-card">
+      <h2 class="font-display" style="font-size:22px;margin-bottom:4px;">Ingresar al sistema</h2>
+      <p class="text-muted-soft" style="font-size:13px;margin-bottom:18px;">Ingresa con la cuenta que te asignó la Coordinación CIST. Solo pueden acceder usuarios registrados previamente desde Configuración.</p>
+
+      <form id="login-form">
+        <div class="form-group-lector">
+          <label class="form-label-lector">Usuario o correo</label>
+          <input class="form-control-lector" type="text" inputmode="email" autocapitalize="off" autocorrect="off" id="login-email" required placeholder="admin o nombre@iep20150.edu.pe">
+        </div>
+        <div class="form-group-lector">
+          <label class="form-label-lector">Contraseña</label>
+          <input class="form-control-lector" type="password" id="login-password" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn-lector btn-lector-primary" style="width:100%;">
+          <i class="bi bi-box-arrow-in-right"></i> Ingresar
+        </button>
+      </form>
+
+      <div class="demo-hint" id="primer-acceso-hint">
+        <strong>Primer acceso:</strong> si el sistema está recién instalado, ingresa con la cuenta inicial del administrador (Coordinación CIST) y crea desde ahí a los docentes, bibliotecario(a), estudiantes y familias, con sus roles y módulos correspondientes.
+      </div>
+      <label class="btn-lector btn-lector-ghost" style="margin-top:10px;width:100%;">
+        <i class=""></i> Autor: CIST
+      </label>
+      
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="js/data.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/filedb.js"></script>
+<script src="js/app.js"></script>
+<script>
+(async function () {
+  initDatabase();
+  await sincronizarDesdeNube(4000);
+  document.getElementById("cloud-loading").style.display = "none";
+
+  document.getElementById("hero-libros").textContent = dbGet("libros").length;
+  document.getElementById("hero-estudiantes").textContent = dbGet("usuarios").filter(u => u.rol === "estudiante").length;
+  document.getElementById("hero-aulas").textContent = dbGet("aulas").length;
+
+  async function borrarDatosLocales() {
+    const mensaje = cloudDisponible()
+      ? "Esto borra la copia guardada en ESTE navegador y la vuelve a descargar desde la nube. Si el problema es que no ves una cuenta nueva, esto lo soluciona. ¿Continuar?"
+      : "Esto borra todos los datos guardados en este navegador y deja el sistema como recién instalado, solo con la cuenta inicial del administrador. ¿Continuar?";
+    if (!confirm(mensaje)) return;
+
+    Object.keys(SEED_MAP).forEach(name => localStorage.removeItem(dbKey(name)));
+    localStorage.removeItem(dbKey("version"));
+
+    if (cloudDisponible()) {
+      await sincronizarDesdeNube(6000);
+      mostrarToast("Datos locales renovados desde la nube. Recargando...", "success");
+    } else {
+      initDatabase();
+      mostrarToast("Datos locales borrados. Recargando...", "info");
+    }
+    setTimeout(() => window.location.reload(), 800);
+  }
+  window.borrarDatosLocales = borrarDatosLocales;
+
+  // El aviso de "primer acceso" solo tiene sentido mientras exista una única cuenta (la del admin inicial).
+  if (dbGet("usuarios").length > 1) {
+    document.getElementById("primer-acceso-hint").style.display = "none";
+  }
+
+  document.getElementById("login-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const email = document.getElementById("login-email").value.trim().replace(/[`'"“”‘’]/g, "");
+    const password = document.getElementById("login-password").value.trim();
+    const resultado = iniciarSesion(email, password);
+    if (!resultado.ok) {
+      mostrarToast(resultado.inactivo ? "Esta cuenta fue dada de baja. Contacta a la Coordinación CIST." : "Correo o contraseña incorrectos. Verifica tus datos.", "danger");
+      return;
+    }
+    window.location.href = "pages/" + primeraPaginaPermitida(resultado.usuario);
+  });
+
+  document.getElementById("input-restaurar-login").addEventListener("change", async (e) => {
+    const archivo = e.target.files[0];
+    if (!archivo) return;
+    if (!confirm("Esto reemplazará toda la información actual del sistema (incluida la nube, si está conectada) por la del archivo seleccionado. ¿Continuar?")) { e.target.value = ""; return; }
+    const resultado = await restaurarRespaldoBD(archivo);
+    if (!resultado.ok) { mostrarToast(resultado.mensaje, "danger"); e.target.value = ""; return; }
+    if (cloudDisponible()) await subirTodoAhoraANube();
+    mostrarToast("Base de datos restaurada. Recargando...", "success");
+    setTimeout(() => window.location.reload(), 900);
+  });
+})();
+</script>
+</body>
+</html>

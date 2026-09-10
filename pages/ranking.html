@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ranking de lectores — LectorIEP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-content">
+
+      <div class="page-header">
+        <span class="page-eyebrow-tag"><i class="bi bi-trophy"></i> Gamificación</span>
+        <h1 class="page-title">Ranking de lectores</h1>
+        <p class="page-subtitle">Reconocimiento a los estudiantes con mayor constancia y puntos de lectura acumulados.</p>
+      </div>
+
+      <div class="grid-cards" style="grid-template-columns:1.3fr 1fr;align-items:start;">
+        <div class="card-lector">
+          <div class="section-title">
+            <span>Tabla de posiciones</span>
+            <select class="form-select-lector" id="f-aula" style="max-width:200px;">
+              <option value="">Todas las aulas</option>
+            </select>
+          </div>
+          <div id="tabla-ranking"></div>
+        </div>
+
+        <div class="card-lector">
+          <div class="section-title"><span>Galería de insignias</span></div>
+          <div id="galeria-insignias" class="grid-cards grid-cols-3" style="gap:10px;"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloud.js"></script>
+<script src="../js/filedb.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  initDatabase();
+  const usuario = renderShell("ranking.html");
+
+  const aulas = dbGet("aulas");
+  const selAula = document.getElementById("f-aula");
+  aulas.forEach(a => selAula.innerHTML += `<option value="${a.id}">${etiquetaAula(a)}</option>`);
+  if (usuario.rol === "estudiante" && usuario.grado) {
+    const propia = aulas.find(a => a.nivel === usuario.nivel && a.grado === usuario.grado && a.seccion === usuario.seccion);
+    if (propia) selAula.value = propia.id;
+  }
+
+  function renderRanking() {
+    let estudiantes = dbGet("usuarios").filter(u => u.rol === "estudiante" && usuarioActivo(u));
+    const aulaId = selAula.value;
+    if (aulaId) {
+      const aula = aulas.find(a => a.id === aulaId);
+      estudiantes = estudiantes.filter(u => u.nivel === aula.nivel && u.grado === aula.grado && u.seccion === aula.seccion);
+    }
+    estudiantes.sort((a, b) => (b.puntos || 0) - (a.puntos || 0));
+    const cont = document.getElementById("tabla-ranking");
+    if (estudiantes.length === 0) { cont.innerHTML = `<div class="empty-state"><i class="bi bi-people"></i>No hay estudiantes en esta aula.</div>`; return; }
+    cont.innerHTML = `<div class="table-scroll"><table class="table-lector">
+      <thead><tr><th>#</th><th>Estudiante</th><th>Grado</th><th>Nivel lector</th><th>Puntos</th><th>Racha</th></tr></thead>
+      <tbody>${estudiantes.map((u, i) => {
+        const nivel = getNivelLector(u.puntos || 0);
+        const esYo = u.id === usuario.id;
+        return `<tr style="${esYo ? "background:rgba(199,125,46,0.08);" : ""}">
+          <td>${medalla(i)}</td>
+          <td>${u.nombre}${esYo ? ' <span class="chip" style="--chip-color:var(--amber);margin-left:4px;">Tú</span>' : ""}</td>
+          <td>${etiquetaGrado(u.nivel, u.grado)} "${u.seccion}"</td>
+          <td><i class="bi ${nivel.icono}"></i> ${nivel.nombre}</td>
+          <td><strong>${u.puntos || 0}</strong></td>
+          <td><i class="bi bi-fire" style="color:var(--amber);"></i> ${u.racha || 0}</td>
+        </tr>`;
+      }).join("")}</tbody></table></div>`;
+  }
+
+  function medalla(i) {
+    if (i === 0) return "🥇";
+    if (i === 1) return "🥈";
+    if (i === 2) return "🥉";
+    return i + 1;
+  }
+
+  selAula.addEventListener("change", renderRanking);
+  renderRanking();
+
+  // Galería de insignias con progreso general (todas las otorgadas alguna vez en el colegio)
+  const otorgadas = dbGet("insigniasUsuario");
+  document.getElementById("galeria-insignias").innerHTML = INSIGNIAS.map(b => {
+    const veces = otorgadas.filter(o => o.badgeId === b.id).length;
+    const yoLaTengo = otorgadas.some(o => o.badgeId === b.id && o.usuarioId === usuario.id);
+    return `<div class="badge-earned ${yoLaTengo ? "" : "locked"}">
+      <div class="badge-icon" style="background:${b.color}"><i class="bi ${b.icono}"></i></div>
+      <div class="badge-name">${b.nombre}</div>
+      <div class="badge-desc">${b.descripcion}</div>
+      <div class="badge-desc">${veces} otorgada(s)</div>
+    </div>`;
+  }).join("");
+</script>
+</body>
+</html>

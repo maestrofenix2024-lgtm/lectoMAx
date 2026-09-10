@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi lectura — LectorIEP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%231B3A5C%22/%3E%3Ctext x=%2250%22 y=%2266%22 font-size=%2255%22 text-anchor=%22middle%22 fill=%22%23C77D2E%22%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="../css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-content">
+
+      <div class="page-header">
+        <span class="page-eyebrow-tag"><i class="bi bi-stars"></i> Panel del estudiante</span>
+        <h1 class="page-title" id="saludo">Hola 👋</h1>
+        <p class="page-subtitle">Este es tu progreso de lectura. Sigue registrando tus libros en la bitácora para ganar puntos e insignias.</p>
+      </div>
+
+      <div id="alerta-asignaciones"></div>
+
+      <div class="grid-cards grid-cols-4" style="margin-bottom:20px;">
+        <div class="card-lector bar-left stat-card">
+          <span class="stat-label">Puntos de lectura</span>
+          <span class="stat-value" id="stat-puntos">0</span>
+          <span class="stat-hint" id="stat-nivel-lector">Explorador de Páginas</span>
+        </div>
+        <div class="card-lector bar-amber stat-card">
+          <span class="stat-label">Racha actual</span>
+          <span class="stat-value streak-flame"><i class="bi bi-fire"></i> <span id="stat-racha">0</span></span>
+          <span class="stat-hint">días seguidos leyendo</span>
+        </div>
+        <div class="card-lector bar-forest stat-card">
+          <span class="stat-label">Libros completados</span>
+          <span class="stat-value" id="stat-libros">0</span>
+          <span class="stat-hint" id="stat-meta">Meta mensual: —</span>
+        </div>
+        <div class="card-lector bar-gold stat-card">
+          <span class="stat-label">Minutos leídos (total)</span>
+          <span class="stat-value" id="stat-minutos">0</span>
+          <span class="stat-hint">tiempo acumulado</span>
+        </div>
+      </div>
+
+      <div class="grid-cards" style="grid-template-columns:1.4fr 1fr; margin-bottom:20px;">
+        <div class="card-lector">
+          <div class="section-title">
+            <span>Nivel lector</span>
+            <a href="ranking.html" class="btn-lector btn-lector-ghost btn-lector-sm">Ver ranking <i class="bi bi-arrow-right"></i></a>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
+            <div style="width:56px;height:56px;border-radius:50%;background:var(--amber-soft);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--navy-deep);">
+              <i class="bi" id="nivel-icono"></i>
+            </div>
+            <div>
+              <div style="font-family:var(--font-display);font-size:19px;" id="nivel-nombre-grande">—</div>
+              <div class="text-muted-soft" id="nivel-siguiente" style="font-size:12.5px;">Calculando...</div>
+            </div>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="nivel-progreso" style="width:0%;background:var(--amber);"></div></div>
+        </div>
+
+        <div class="card-lector">
+          <div class="section-title"><span>Últimas insignias</span></div>
+          <div id="insignias-recientes" class="grid-cards grid-cols-3" style="gap:10px;"></div>
+        </div>
+      </div>
+
+      <div class="grid-cards" style="grid-template-columns:1fr 1fr;margin-bottom:20px;">
+        <div class="card-lector">
+          <div class="section-title"><span>Mi meta personal del mes</span></div>
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px;">
+            <div style="font-family:var(--font-display);font-size:22px;" id="meta-texto">0 / 0 libros</div>
+          </div>
+          <div class="progress-track" style="margin-bottom:14px;"><div class="progress-fill" id="meta-progreso" style="width:0%;"></div></div>
+          <form id="form-meta" style="display:flex;gap:8px;align-items:flex-end;">
+            <div class="form-group-lector" style="margin-bottom:0;flex:1;">
+              <label class="form-label-lector">Cambiar meta mensual (libros)</label>
+              <input type="number" min="1" class="form-control-lector" id="input-meta">
+            </div>
+            <button type="submit" class="btn-lector btn-lector-outline"><i class="bi bi-check2"></i> Guardar</button>
+          </form>
+        </div>
+        <div class="card-lector">
+          <div class="section-title"><span>Tendencia — últimos 14 días</span></div>
+          <canvas id="chart-tendencia" height="110"></canvas>
+        </div>
+      </div>
+
+      <div class="grid-cards" style="grid-template-columns:1.3fr 1fr;">
+        <div class="card-lector">
+          <div class="section-title">
+            <span>Mis préstamos activos</span>
+            <a href="biblioteca.html" class="btn-lector btn-lector-ghost btn-lector-sm">Ir al catálogo <i class="bi bi-arrow-right"></i></a>
+          </div>
+          <div id="prestamos-activos"></div>
+        </div>
+
+        <div class="card-lector">
+          <div class="section-title"><span>Recomendado para ti</span></div>
+          <div id="recomendaciones"></div>
+        </div>
+      </div>
+
+      <div class="card-lector" style="margin-top:20px;">
+        <div class="section-title">
+          <span>Lecturas recientes</span>
+          <a href="bitacora.html" class="btn-lector btn-lector-amber btn-lector-sm"><i class="bi bi-plus-lg"></i> Registrar lectura</a>
+        </div>
+        <div id="lecturas-recientes"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast-stack" class="toast-stack"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloud.js"></script>
+<script src="../js/filedb.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  initDatabase();
+  actualizarEstadosPrestamos();
+  const usuario = renderShell("estudiante.html");
+
+  document.getElementById("saludo").textContent = `Hola, ${usuario.nombre.split(" ")[0]} 👋`;
+
+  const libros = librosLeidosPorUsuario(usuario.id);
+  const minutos = minutosLeidosPorUsuario(usuario.id);
+  const nivelLector = getNivelLector(usuario.puntos || 0);
+  const siguienteNivel = NIVELES_LECTOR.find(n => n.min > (usuario.puntos || 0));
+
+  document.getElementById("stat-puntos").textContent = usuario.puntos || 0;
+  document.getElementById("stat-nivel-lector").textContent = nivelLector.nombre;
+  document.getElementById("stat-racha").textContent = usuario.racha || 0;
+  document.getElementById("stat-libros").textContent = libros;
+  document.getElementById("stat-minutos").textContent = minutos;
+
+  const aula = dbGet("aulas").find(a => a.nivel === usuario.nivel && a.grado === usuario.grado && a.seccion === usuario.seccion);
+  document.getElementById("stat-meta").textContent = aula ? `Meta mensual: ${aula.metaMensualLibros} libros` : "Meta mensual: —";
+
+  document.getElementById("nivel-icono").className = "bi " + nivelLector.icono;
+  document.getElementById("nivel-nombre-grande").textContent = nivelLector.nombre;
+  if (siguienteNivel) {
+    const progresoRango = (usuario.puntos - nivelLector.min) / (siguienteNivel.min - nivelLector.min) * 100;
+    document.getElementById("nivel-progreso").style.width = Math.min(100, progresoRango) + "%";
+    document.getElementById("nivel-siguiente").textContent = `Te faltan ${siguienteNivel.min - usuario.puntos} pts para "${siguienteNivel.nombre}"`;
+  } else {
+    document.getElementById("nivel-progreso").style.width = "100%";
+    document.getElementById("nivel-siguiente").textContent = "¡Alcanzaste el nivel máximo!";
+  }
+
+  // Insignias
+  const misInsignias = dbGet("insigniasUsuario").filter(i => i.usuarioId === usuario.id);
+  const contInsignias = document.getElementById("insignias-recientes");
+  if (misInsignias.length === 0) {
+    contInsignias.innerHTML = `<div class="empty-state" style="grid-column:1/-1;padding:16px;"><i class="bi bi-award"></i>Aún no tienes insignias. ¡Registra tu primera lectura!</div>`;
+  } else {
+    contInsignias.innerHTML = misInsignias.slice(-3).reverse().map(i => {
+      const b = getBadgeById(i.badgeId);
+      return `<div class="badge-earned"><div class="badge-icon" style="background:${b.color}"><i class="bi ${b.icono}"></i></div><div class="badge-name">${b.nombre}</div></div>`;
+    }).join("");
+  }
+
+  // Préstamos activos
+  const misPrestamos = dbGet("prestamos").filter(p => p.usuarioId === usuario.id && p.estado !== "devuelto");
+  const contPrestamos = document.getElementById("prestamos-activos");
+  if (misPrestamos.length === 0) {
+    contPrestamos.innerHTML = `<div class="empty-state"><i class="bi bi-journal-check"></i>No tienes préstamos activos en este momento.</div>`;
+  } else {
+    contPrestamos.innerHTML = misPrestamos.map(p => {
+      const libro = getBookById(p.libroId);
+      const atrasado = p.estado === "atrasado";
+      return `<div style="display:flex;align-items:center;justify-content:between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);">
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:14px;">${libro.titulo}</div>
+          <div class="text-muted-soft" style="font-size:12.5px;">Devolver antes del ${formatoFecha(p.fechaDevolucionEsperada)}</div>
+        </div>
+        <span class="chip" style="--chip-color:${atrasado ? "var(--brick)" : "var(--forest)"}">${atrasado ? "Atrasado" : "Vigente"}</span>
+      </div>`;
+    }).join("");
+  }
+
+  // Recomendaciones: libros del nivel MINEDU del grado del estudiante, no leídos
+  const leidos = new Set(dbGet("bitacora").filter(l => l.usuarioId === usuario.id).map(l => l.libroId));
+  const recomendados = dbGet("libros").filter(b => b.grados.includes(codigoGrado(usuario.nivel, usuario.grado)) && !leidos.has(b.id)).slice(0, 3);
+  const contRecom = document.getElementById("recomendaciones");
+  contRecom.innerHTML = recomendados.length ? recomendados.map(b => `
+    <div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center;">
+      <div style="width:36px;height:36px;border-radius:8px;background:${b.color};flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;"><i class="bi bi-book"></i></div>
+      <div style="flex:1;">
+        <div style="font-weight:600;font-size:13.5px;">${b.titulo}</div>
+        <div class="text-muted-soft" style="font-size:12px;">${b.autor}</div>
+      </div>
+    </div>`).join("") : `<div class="empty-state"><i class="bi bi-emoji-smile"></i>¡Ya exploraste todos los libros de tu nivel!</div>`;
+
+  // Lecturas recientes
+  const misLecturas = dbGet("bitacora").filter(l => l.usuarioId === usuario.id).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 5);
+  const contLect = document.getElementById("lecturas-recientes");
+  if (misLecturas.length === 0) {
+    contLect.innerHTML = `<div class="empty-state"><i class="bi bi-journal-text"></i>Todavía no registras lecturas.</div>`;
+  } else {
+    contLect.innerHTML = `<div class="table-scroll"><table class="table-lector">
+      <thead><tr><th>Libro</th><th>Fecha</th><th>Páginas</th><th>Minutos</th><th>Autoevaluación</th></tr></thead>
+      <tbody>${misLecturas.map(l => {
+        const libro = getBookById(l.libroId);
+        return `<tr><td>${libro.titulo}</td><td>${formatoFecha(l.fecha)}</td><td>${l.paginas}</td><td>${l.minutos}</td><td>${"⭐".repeat(l.autoevaluacion)}</td></tr>`;
+      }).join("")}</tbody></table></div>`;
+  }
+
+  // Lecturas asignadas por el docente
+  const asignaciones = asignacionesDeEstudiante(usuario);
+  const pendientes = asignaciones.filter(a => !a.cumplida);
+  if (pendientes.length) {
+    document.getElementById("alerta-asignaciones").innerHTML = `
+      <div class="card-lector bar-amber" style="margin-bottom:20px;">
+        <div class="section-title"><span><i class="bi bi-journal-bookmark"></i> Lecturas asignadas por tu docente</span></div>
+        ${pendientes.map(a => {
+          const libro = getBookById(a.libroId);
+          const vencida = a.fechaLimite < new Date().toISOString().slice(0, 10);
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+            <div><strong style="font-size:13.5px;">${libro.titulo}</strong><div class="text-muted-soft" style="font-size:12px;">${a.nota || "Sin indicaciones adicionales"}</div></div>
+            <span class="chip" style="--chip-color:${vencida ? "var(--brick)" : "var(--navy)"}">Hasta ${formatoFecha(a.fechaLimite)}</span>
+          </div>`;
+        }).join("")}
+      </div>`;
+  }
+
+  // Meta personal
+  const metaPersonal = metaPersonalDe(usuario);
+  const librosMes = librosLeidosEsteMes(usuario.id);
+  document.getElementById("meta-texto").textContent = `${librosMes} / ${metaPersonal} libros`;
+  document.getElementById("meta-progreso").style.width = Math.min(100, (librosMes / metaPersonal) * 100) + "%";
+  document.getElementById("meta-progreso").style.background = librosMes >= metaPersonal ? "var(--forest)" : "var(--amber)";
+  document.getElementById("input-meta").value = metaPersonal;
+  document.getElementById("form-meta").addEventListener("submit", (e) => {
+    e.preventDefault();
+    actualizarMetaPersonal(usuario.id, document.getElementById("input-meta").value);
+    mostrarToast("Meta personal actualizada.", "success");
+    setTimeout(() => window.location.reload(), 700);
+  });
+
+  // Tendencia de los últimos 14 días
+  const dias14 = Array.from({ length: 14 }, (_, i) => fechaHace(13 - i));
+  const minutosPorDia = dias14.map(f => dbGet("bitacora").filter(l => l.usuarioId === usuario.id && l.fecha === f).reduce((a, l) => a + l.minutos, 0));
+  new Chart(document.getElementById("chart-tendencia"), {
+    type: "line",
+    data: {
+      labels: dias14.map(f => f.slice(8, 10) + "/" + f.slice(5, 7)),
+      datasets: [{ label: "Minutos leídos", data: minutosPorDia, borderColor: "#C77D2E", backgroundColor: "rgba(199,125,46,0.15)", fill: true, tension: 0.35, pointRadius: 2 }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+</script>
+</body>
+</html>
